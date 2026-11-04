@@ -344,7 +344,7 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-menu-note[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#c44040)}',
 			'.dsh-pr-actions{display:flex;align-items:center;gap:8px}',
 			// A2 布局：两列开关栅格、模型两列子字段、提示词 meta 行、吸底保存条
-			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px}',
+			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px}',
 			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px;min-width:0}',
 			'.dsh-pr-ctrl-text{flex:1;min-width:0}',
 			'.dsh-pr-ctrl-item .dsh-pr-switch{flex:none}',
