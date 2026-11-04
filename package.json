@@ -1,6 +1,6 @@
 {
   "name": "dsh-prompt-refine",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "private": true,
   "description": "Prompt Refine: refine a composer draft into a clearer prompt. This build installs the bundle shell only (no refinement logic yet).",
   "type": "module",

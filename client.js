@@ -342,6 +342,23 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-menu-note{margin:4px 6px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,currentColor)}',
 			'.dsh-pr-menu-note[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#c44040)}',
 			'.dsh-pr-actions{display:flex;align-items:center;gap:8px}',
+			// A2 布局：两列开关栅格、模型两列子字段、提示词 meta 行、吸底保存条
+			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px}',
+			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px}',
+			'.dsh-pr-ctrl-item .dsh-pr-switch{flex:none}',
+			'.dsh-pr-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px}',
+			'.dsh-pr-field-k{display:block;font:500 11px/1 var(--dsw-alias-label-tertiary,inherit);letter-spacing:.08em;margin-bottom:6px}',
+			'.dsh-pr-select{appearance:none;width:100%;box-sizing:border-box;height:32px;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff) no-repeat right 10px center;color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;cursor:pointer}',
+			'.dsh-pr-select:hover:not(:disabled){border-color:var(--dsw-alias-label-tertiary,currentColor)}',
+			'.dsh-pr-select:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand-soft,rgba(36,123,191,.15))}',
+			'.dsh-pr-select:disabled{cursor:default;opacity:.5}',
+			'.dsh-pr-meta{display:flex;align-items:baseline;gap:8px;font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor);margin-bottom:6px}',
+			'.dsh-pr-meta .dsh-pr-grow{flex:1}',
+			'.dsh-pr-foot{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:10px;margin-top:4px;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-0,transparent)}',
+			'.dsh-pr-foot .dsh-pr-grow{flex:1}',
+			'.dsh-pr-count{font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor)}',
+			'.dsh-pr-count[data-dirty="true"]{color:var(--dsw-alias-label-primary,currentColor)}',
+			'@media (max-width:480px){.dsh-pr-ctrl-grid,.dsh-pr-sub-grid{grid-template-columns:1fr}}',
 			'.dsh-pr-save{border:none;border-radius:8px;padding:6px 14px;background:var(--dsw-alias-brand,#247bbf);color:var(--dsw-alias-bg-layer-1,#fff);font:inherit;font-size:13px;line-height:20px;font-weight:500;cursor:pointer}',
 			'.dsh-pr-save:hover:not(:disabled){filter:brightness(1.06)}',
 			'.dsh-pr-save:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
@@ -567,6 +584,46 @@ window.__ModuleLoader__.load({
 		 * @param value - the staged value.
 		 * @returns whether the save must clear this field instead of setting it.
 		 */
+		/**
+		 * Flatten the catalogue into native-select options: `provider · model` rows in
+		 * catalogue order. Used by the fixed-model `<select>`.
+		 * @param controller - the settings page controller owning the catalogue store.
+		 * @returns ordered options; a single disabled row when the catalogue is not
+		 *   ready, so the select never shows a silently empty list.
+		 */
+		function modelOptions(controller) {
+			const catalog = controller.catalog.getSnapshot();
+			if (catalog.status !== 'ready') {
+				return [{ value: '', label: catalog.status === 'loading' ? controller.t('menu.loading')
+					: controller.t('menu.loadFailed', { reason: catalog.error ?? '' }), disabled: true }];
+			}
+			const options = [];
+			for (const group of catalog.groups) {
+				for (const model of group.models ?? []) {
+					options.push({
+						value: `${group.id}\u0000${model.id}`,
+						label: `${group.name ?? group.id} · ${model.name ?? model.id}`,
+					});
+				}
+			}
+			return options;
+		}
+
+		/**
+		 * Reasoning-effort options for the pinned model: "model default" first (value
+		 * ''), then the efforts the model advertises. A model with no advertised
+		 * efforts yields the default row alone.
+		 * @param controller - the settings page controller.
+		 * @returns option rows for the effort select.
+		 */
+		function effortOptions(controller) {
+			const rows = [{ id: '', name: controller.t('menu.effortDefault') }];
+			for (const effort of controller.effortsForPinnedModel()) {
+				rows.push({ id: effort.id, name: effort.name ?? effort.id });
+			}
+			return rows;
+		}
+
 		function isFieldClear(field, value) {
 			if (value === null) return true;
 			return PROMPT_FIELDS.includes(field) && value === '';
@@ -754,8 +811,9 @@ window.__ModuleLoader__.load({
 			/**
 			 * @param ctx - the scoped client context (configForms + remote services).
 			 */
-			constructor(ctx) {
+			constructor(ctx, t) {
 				this.ctx = ctx;
+				this.t = t;
 				this.form = ctx.configForms.get(NS);
 				this.remote = ctx.remote;
 				/** A version marker replaced on every change, for React's subscription. */
@@ -949,6 +1007,11 @@ window.__ModuleLoader__.load({
 				return [];
 			}
 
+			/** How many fields carry a staged edit; drives the footer counter. */
+			dirtyCount() {
+				return Object.values(this.draft).filter((value) => value !== undefined).length;
+			}
+
 			/** Drop every staged edit (the "discard" button). */
 			discard() {
 				this.draft = emptyDraft();
@@ -1031,40 +1094,6 @@ window.__ModuleLoader__.load({
 		 * each button carries its own selection state, and arrow keys move between
 		 * members the way native radios do.
 		 */
-		function PresetSegments({ controller, t, disabled }) {
-			const active = normalizePreset(controller.view.preset);
-			const labels = useMemo(() => ({
-				general: t('preset.general'),
-				code: t('preset.code'),
-				writing: t('preset.writing'),
-				translation: t('preset.translation'),
-			}), [t]);
-			const onKeyDown = useCallback((event) => {
-				const index = PRESET_KEYS.indexOf(active);
-				if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-					event.preventDefault();
-					controller.selectPreset(PRESET_KEYS[(index + 1) % PRESET_KEYS.length]);
-				} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-					event.preventDefault();
-					controller.selectPreset(PRESET_KEYS[(index - 1 + PRESET_KEYS.length) % PRESET_KEYS.length]);
-				}
-			}, [active, controller]);
-			return h('div', {
-				className: 'dsh-pr-seg',
-				role: 'radiogroup',
-				'aria-label': t('preset.groupLabel'),
-				onKeyDown,
-			}, PRESET_KEYS.map((key) => h('button', {
-				key,
-				type: 'button',
-				className: 'dsh-pr-seg-item',
-				role: 'radio',
-				'aria-checked': key === active,
-				disabled,
-				onClick: () => controller.selectPreset(key),
-			}, labels[key])));
-		}
-
 		/** The context and master switches, one accessible shape, two rows. */
 		function SwitchRow({ checked, onToggle, label, description, disabled }) {
 			return h(
@@ -1296,7 +1325,13 @@ window.__ModuleLoader__.load({
 					'div',
 					{ className: 'dsh-pr-row' },
 					h('div', { className: 'dsh-pr-rowhead' }, h('span', { className: 'dsh-pr-label' }, t('preset.groupLabel'))),
-					h(PresetSegments, { controller, t, disabled: !writable }),
+					h('select', {
+						className: 'dsh-pr-select',
+						'aria-label': t('preset.groupLabel'),
+						disabled: !writable,
+						value: normalizePreset(view.preset),
+						onChange: (event) => controller.selectPreset(event.target.value),
+					}, PRESET_KEYS.map((key) => h('option', { key, value: key }, t(`preset.${key}`)))),
 					h('p', { className: 'dsh-pr-sub' }, t('preset.description')),
 				),
 				...PRESET_KEYS.map((preset) => preset === normalizePreset(view.preset)
@@ -1312,50 +1347,84 @@ window.__ModuleLoader__.load({
 				h(
 					'div',
 					{ className: 'dsh-pr-row' },
-					h('div', { className: 'dsh-pr-rowhead' }, h('span', { className: 'dsh-pr-label' }, t('model.label'))),
-					h('div', { className: 'dsh-pr-seg', role: 'radiogroup', 'aria-label': t('model.groupLabel') },
-						h('button', {
-							type: 'button',
-							className: 'dsh-pr-seg-item',
-							role: 'radio',
-							'aria-checked': view.modelMode !== 'fixed',
-							disabled: !writable,
-							onClick: () => controller.selectModelMode('follow'),
-						}, t('model.follow')),
-						h('button', {
-							type: 'button',
-							className: 'dsh-pr-seg-item',
-							role: 'radio',
-							'aria-checked': view.modelMode === 'fixed',
-							disabled: !writable,
-							onClick: () => controller.selectModelMode('fixed'),
-						}, t('model.fixed')),
+					h('div', { className: 'dsh-pr-rowhead' },
+						h('span', { className: 'dsh-pr-label' }, t('model.label')),
+						h('div', { className: 'dsh-pr-seg', role: 'radiogroup', 'aria-label': t('model.groupLabel') },
+							h('button', {
+								type: 'button',
+								className: 'dsh-pr-seg-item',
+								role: 'radio',
+								'aria-checked': view.modelMode !== 'fixed',
+								disabled: !writable,
+								onClick: () => controller.selectModelMode('follow'),
+							}, t('model.follow')),
+							h('button', {
+								type: 'button',
+								className: 'dsh-pr-seg-item',
+								role: 'radio',
+								'aria-checked': view.modelMode === 'fixed',
+								disabled: !writable,
+								onClick: () => controller.selectModelMode('fixed'),
+							}, t('model.fixed')),
+						),
 					),
 					view.modelMode === 'fixed'
-						? h(ModelMenu, { controller, t, disabled: !writable })
+						? h('div', { className: 'dsh-pr-sub-grid' },
+							h('div', {},
+								h('span', { className: 'dsh-pr-field-k' }, t('model.pickLabel')),
+								h('select', {
+									className: 'dsh-pr-select',
+									'aria-label': t('model.pickLabel'),
+									disabled: !writable || catalogStatus() !== 'ready',
+									value: stagedPair(view.provider, view.model) === null ? '' : `${view.provider}\u0000${view.model}`,
+									onChange: (event) => {
+										const [provider, model] = event.target.value.split('\u0000');
+										if (provider && model) controller.pickModel(provider, model);
+									},
+								}, modelOptions(controller).map((option) => h('option', {
+									key: option.value,
+									value: option.value,
+									disabled: option.disabled === true,
+								}, option.label)))),
+							h('div', {},
+								h('span', { className: 'dsh-pr-field-k' }, t('model.effortLabel')),
+								h('select', {
+									className: 'dsh-pr-select',
+									'aria-label': t('model.effortLabel'),
+									disabled: !writable,
+									value: view.reasoningEffort ?? '',
+									onChange: (event) => controller.selectEffort(event.target.value),
+								}, effortOptions(controller).map((option) => h('option', {
+									key: option.id || '(default)',
+									value: option.id,
+								}, option.name)))),
+							h('p', { className: 'dsh-pr-sub' }, t('model.effortHint')),
+						)
 						: h('p', { className: 'dsh-pr-sub' }, t('model.followDescription')),
-					view.modelMode === 'fixed'
-						? h(EffortMenu, { controller, t, disabled: !writable })
-						: null,
 					view.modelMode === 'fixed'
 						? h('p', { className: 'dsh-pr-sub' }, t('model.fixedDescription'))
 						: null,
 				),
 				h(
 					'div',
-					{ className: 'dsh-pr-actions' },
-					h('button', {
-						type: 'button',
-						className: 'dsh-pr-save',
-						disabled: saveDisabled,
-						onClick: () => controller.save(),
-					}, state === 'saving' ? t('action.saving') : t('action.save')),
+					{ className: 'dsh-pr-foot' },
+					h('span', { className: 'dsh-pr-count', 'data-dirty': String(controller.dirtyCount() > 0) },
+						controller.dirtyCount() > 0
+							? t('foot.unsaved', { count: String(controller.dirtyCount()) })
+							: t('foot.clean')),
+					h('span', { className: 'dsh-pr-grow' }),
 					h('button', {
 						type: 'button',
 						className: 'dsh-pr-ghost',
 						disabled: discardDisabled,
 						onClick: () => controller.discard(),
 					}, t('action.discard')),
+					h('button', {
+						type: 'button',
+						className: 'dsh-pr-save',
+						disabled: saveDisabled,
+						onClick: () => controller.save(),
+					}, state === 'saving' ? t('action.saving') : t('action.save')),
 				),
 			);
 		}
@@ -1737,6 +1806,10 @@ window.__ModuleLoader__.load({
 				'menu.loading': '正在加载模型目录…',
 				'menu.loadFailed': '模型目录加载失败：{reason}',
 				'menu.effortDefault': '模型默认',
+				'eyebrow': 'SETTINGS · PROMPT REWRITER',
+				'model.pickLabel': '模型',
+				'foot.unsaved': '未保存 {count} 项',
+				'foot.clean': '未修改',
 				'model.effortLabel': '思考强度',
 				'model.effortHint': '只对固定模型生效；跟随会话时沿用会话自己的思考强度。',
 				'action.save': '保存',
@@ -1801,6 +1874,10 @@ window.__ModuleLoader__.load({
 				'menu.loading': 'Loading the model catalogue…',
 				'menu.loadFailed': 'Loading the model catalogue failed: {reason}',
 				'menu.effortDefault': 'Model default',
+				'eyebrow': 'SETTINGS · PROMPT REWRITER',
+				'model.pickLabel': 'Model',
+				'foot.unsaved': '{count} unsaved',
+				'foot.clean': 'No changes',
 				'model.effortLabel': 'Reasoning effort',
 				'model.effortHint': 'Applies to the fixed model only; follow-session mode keeps the session\'s own effort.',
 				'action.save': 'Save',
@@ -1856,7 +1933,7 @@ window.__ModuleLoader__.load({
 				// 'remote.session' without inject" when the sub-path is not in the list.
 				ctx.inject(['slots', 'locale', 'configForms', 'remote', 'remote.session'], (scope) => {
 						const pageT = scope.locale.bind(NS);
-						const controller = new SettingsPageController(scope);
+						const controller = new SettingsPageController(scope, pageT);
 						scope.effect(
 							() => () => controller.dispose(),
 							'dsh-prompt-refine: settings page',
