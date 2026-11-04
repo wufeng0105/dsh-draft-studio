@@ -306,6 +306,8 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-page{display:flex;flex-direction:column;gap:18px;max-width:720px;padding:4px 0}',
 			'.dsh-pr-title{margin:0;font-size:15px;line-height:22px;font-weight:600;color:var(--dsw-alias-label-primary,currentColor)}',
 			'.dsh-pr-row{display:flex;flex-direction:column;gap:6px}',
+			'.dsh-pr-box{border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px 16px;gap:0}',
+			'.dsh-pr-model-body{display:flex;flex-direction:column;justify-content:flex-start;min-height:78px;margin-top:12px}',
 			'.dsh-pr-rowhead{display:flex;align-items:center;justify-content:space-between;gap:12px}',
 			'.dsh-pr-label{font-size:13px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-primary,currentColor)}',
 			'.dsh-pr-sub{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,currentColor)}',
@@ -1218,7 +1220,7 @@ window.__ModuleLoader__.load({
 
 				h(
 					'div',
-					{ className: 'dsh-pr-row' },
+					{ className: 'dsh-pr-row dsh-pr-box' },
 					h('div', { className: 'dsh-pr-rowhead' },
 						h('span', { className: 'dsh-pr-label' }, t('model.label')),
 						h('div', { className: 'dsh-pr-seg', role: 'radiogroup', 'aria-label': t('model.groupLabel') },
@@ -1240,6 +1242,7 @@ window.__ModuleLoader__.load({
 							}, t('model.fixed')),
 						),
 					),
+					h('div', { className: 'dsh-pr-model-body' },
 					view.modelMode === 'fixed'
 						? h('div', { className: 'dsh-pr-sub-grid' },
 							h('div', {},
@@ -1273,6 +1276,7 @@ window.__ModuleLoader__.load({
 
 						)
 						: h('p', { className: 'dsh-pr-sub' }, t('model.followDescription')),
+					),
 
 				),
 				h(
