@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.13 — 2026-11-05
+
+设置页独立审计（`.zhll/11-设置页审计.md`，7 项全 FAIL）后的修复。
+
+### 修复（用户可见）
+
+- **模型下拉永远禁用**：`catalog` 的 `subscribe` API 存在但零调用，目录加载完成后页面从不重绘，select 保持首帧的禁用态。已接上订阅。
+- **保存一次冲突后永久失败**：冲突时未刷新 `stagedRevision`，后续每次重试都带旧 revision。现在失败后重读当前 revision。
+- **换模型后强度值残留**：`pickModel` 不重置 `reasoningEffort`，旧模型的档位会留在文档里且对新模型无效。现在换型即重置为「模型默认」。
+- **首帧显示「加载失败」**：`idle` 状态被当成 error 渲染。现在区分 idle/loading 与 error。
+- **状态横幅配色失效**：JS 发 `busy`，CSS 认 `dirty`/`saving` —— 两条规则永不命中。已对齐为 `blocked`/`failed`/`saving`/`dirty`。
+- 两个框 padding 差 2px → 统一。
+
+### 清理
+
+- 删除 4 个死字典键 ×2 语言（`context.description`、`menu.label`、`menu.pickPrompt`、`eyebrow`）。
+- 删除 19 行死 CSS（旧 Menu 七件套、`dsh-pr-meta`、`dsh-pr-actions`、`dsh-pr-spin` 及 keyframes）。
+- 字典现为 zh/en 各 56 键，集合完全一致。
 ## 1.0.11 — 2026-11-05
 
 ### 修复

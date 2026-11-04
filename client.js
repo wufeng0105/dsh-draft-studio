@@ -295,9 +295,6 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-btn[data-state="busy"]{color:var(--dsw-alias-brand,#247bbf)}',
 			'.dsh-pr-btn[data-state="undo"]{color:var(--dsw-alias-brand,#247bbf);background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.12))}',
 			'.dsh-pr-btn[data-state="error"]{color:var(--dsw-alias-danger,#c44040)}',
-			'.dsh-pr-spin{animation:dsh-pr-spin 900ms linear infinite;transform-origin:center}',
-			'@keyframes dsh-pr-spin{to{transform:rotate(360deg)}}',
-			'@media (prefers-reduced-motion:reduce){.dsh-pr-spin{animation:none}}',
 			'.dsh-pr-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}',
 			// Settings page. Aliased tokens only, so the page follows the host theme in
 			// light and dark; every var() carries a literal fallback the way the control
@@ -306,7 +303,7 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-page{display:flex;flex-direction:column;gap:18px;max-width:720px;padding:4px 0}',
 			'.dsh-pr-title{margin:0;font-size:15px;line-height:22px;font-weight:600;color:var(--dsw-alias-label-primary,currentColor)}',
 			'.dsh-pr-row{display:flex;flex-direction:column;gap:6px}',
-			'.dsh-pr-box{border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px 16px;gap:0}',
+			'.dsh-pr-box{border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px;gap:0}',
 			'.dsh-pr-model-body{display:flex;flex-direction:column;justify-content:flex-start;min-height:78px;margin-top:12px}',
 			'.dsh-pr-rowhead{display:flex;align-items:center;justify-content:space-between;gap:12px}',
 			'.dsh-pr-label{font-size:13px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-primary,currentColor)}',
@@ -329,20 +326,6 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-switch[aria-checked="true"]{background:var(--dsw-alias-brand,#247bbf)}',
 			'.dsh-pr-switch-knob{position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-bg-layer-1,#fff);transition:transform 120ms ease}',
 			'.dsh-pr-switch[aria-checked="true"] .dsh-pr-switch-knob{transform:translateX(15px)}',
-			'.dsh-pr-menu{position:relative;max-width:360px}',
-			'.dsh-pr-menu-btn{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;box-sizing:border-box;padding:6px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.06));color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left}',
-			'.dsh-pr-menu-btn:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
-			'.dsh-pr-menu-btn:disabled{cursor:default;opacity:.5}',
-			'.dsh-pr-menu-btn[aria-expanded="true"]{border-color:var(--dsw-alias-brand,#247bbf)}',
-			'.dsh-pr-menu-caret{flex:none;color:var(--dsw-alias-label-tertiary,currentColor)}',
-			'.dsh-pr-menu-pop{position:absolute;z-index:10;top:calc(100% + 4px);left:0;right:0;max-height:280px;overflow:auto;padding:4px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 8px 24px rgba(0,0,0,.16)}',
-			'.dsh-pr-menu-groupname{margin:6px 6px 2px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,currentColor)}',
-			'.dsh-pr-menu-opt{display:block;width:100%;box-sizing:border-box;padding:5px 8px;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;line-height:20px;cursor:pointer;text-align:left}',
-			'.dsh-pr-menu-opt:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.14))}',
-			'.dsh-pr-menu-opt[aria-selected="true"]{color:var(--dsw-alias-brand,#247bbf);font-weight:500}',
-			'.dsh-pr-menu-note{margin:4px 6px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary,currentColor)}',
-			'.dsh-pr-menu-note[data-tone="error"]{color:var(--dsw-alias-state-error-primary,#c44040)}',
-			'.dsh-pr-actions{display:flex;align-items:center;gap:8px}',
 			// A2 布局：两列开关栅格、模型两列子字段、提示词 meta 行、吸底保存条
 			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px}',
 			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px;min-width:0}',
@@ -354,8 +337,6 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-select:hover:not(:disabled){border-color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'.dsh-pr-select:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand-soft,rgba(36,123,191,.15))}',
 			'.dsh-pr-select:disabled{cursor:default;opacity:.5}',
-			'.dsh-pr-meta{display:flex;align-items:baseline;gap:8px;font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor);margin-bottom:6px}',
-			'.dsh-pr-meta .dsh-pr-grow{flex:1}',
 			'.dsh-pr-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25))}',
 			'.dsh-pr-foot .dsh-pr-grow{flex:1}',
 			'.dsh-pr-count{font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor)}',
@@ -596,8 +577,12 @@ window.__ModuleLoader__.load({
 		function modelOptions(controller) {
 			const catalog = controller.catalog.getSnapshot();
 			if (catalog.status !== 'ready') {
-				return [{ value: '', label: catalog.status === 'loading' ? controller.t('menu.loading')
-					: controller.t('menu.loadFailed', { reason: catalog.error ?? '' }), disabled: true }];
+				// `idle` is the first frame before the load starts — reporting it as a
+				// failure made every fresh page open with a red-looking "load failed".
+				const label = catalog.status === 'error'
+					? controller.t('menu.loadFailed', { reason: catalog.error ?? '' })
+					: controller.t('menu.loading');
+				return [{ value: '', label, disabled: true }];
 			}
 			const options = [];
 			for (const group of catalog.groups) {
@@ -986,6 +971,10 @@ window.__ModuleLoader__.load({
 			pickModel(provider, model) {
 				this.stage('provider', provider);
 				this.stage('model', model);
+				// The effort belongs to the model that advertised it: carrying it to a
+				// different model either sends something unsupported or leaves a stale
+				// value in the document. Reset to "model default" on every repin.
+				this.stage('reasoningEffort', '');
 			}
 
 			/** Stage the reasoning effort that goes with the pinned model ('' = default). */
@@ -1072,6 +1061,13 @@ window.__ModuleLoader__.load({
 						}
 					}
 					if (!ok) {
+						// A conflict moved the document under us. Re-read the fence so the
+						// next attempt is compared against the CURRENT revision — otherwise
+						// every retry carries the stale one and can never succeed.
+						const fresh = this.snapshot;
+						if (fresh !== null && Number.isInteger(fresh.revision)) {
+							this.stagedRevision = fresh.revision;
+						}
 						this.failed = true;
 						return;
 					}
@@ -1154,11 +1150,14 @@ window.__ModuleLoader__.load({
 			const writable = stateWritable(state);
 			const block = controller.block;
 			// The catalogue is loaded when the page mounts: a native `<select>` has no
-			// "opened, so fetch now" moment the old custom Menu had. Without this the
-			// fixed-model list stays empty and the select stays disabled.
+			// "opened, so fetch now" moment the old custom Menu had.
 			useEffect(() => {
 				controller.catalog.load().catch(() => {});
 			}, [controller]);
+			// …and the page must REPAINT when that load settles. Without this
+			// subscription the store updates but this component never re-renders, so
+			// the select keeps the disabled state it had on the first frame forever.
+			useSubscription(controller.catalog);
 			const saveDisabled = !writable || state === 'saving' || block !== null;
 			const discardDisabled = !writable || state === 'saving'
 				|| draftEquals(controller.draft, emptyDraft());
@@ -1168,7 +1167,7 @@ window.__ModuleLoader__.load({
 				h('h2', { className: 'dsh-pr-title' }, t('title')),
 				h('p', {
 					className: 'dsh-pr-state',
-					'data-tone': state === 'failed' || block !== null ? 'failed' : state === 'dirty' || state === 'saving' ? 'busy' : 'idle',
+					'data-tone': block !== null ? 'blocked' : state === 'failed' ? 'failed' : state === 'saving' ? 'saving' : state === 'dirty' ? 'dirty' : 'idle',
 				}, block !== null ? t(block) : t(`page.${state}`)),
 				h('div', { className: 'dsh-pr-ctrl-grid' },
 					h(
@@ -1664,18 +1663,14 @@ window.__ModuleLoader__.load({
 				'prompt.title': '{preset}预设的完整提示词',
 				'prompt.restoreDefault': '恢复默认',
 				'context.label': '读取会话上下文',
-				'context.description': '开启后会把当前会话最近的发言作为参考数据一并发出（只作数据，不作指令）。',
 				'model.label': '模型来源',
 				'model.groupLabel': '模型来源',
 				'model.follow': '跟随会话',
 				'model.fixed': '固定模型',
 				'model.followDescription': '使用当前会话正在使用的模型。',
-				'menu.label': '模型目录',
-				'menu.pickPrompt': '选择一个模型',
 				'menu.loading': '正在加载模型目录…',
 				'menu.loadFailed': '模型目录加载失败：{reason}',
 				'menu.effortDefault': '模型默认',
-				'eyebrow': 'SETTINGS · PROMPT REWRITER',
 				'model.pickLabel': '模型',
 				'foot.unsaved': '未保存 {count} 项',
 				'foot.clean': '未修改',
@@ -1726,18 +1721,14 @@ window.__ModuleLoader__.load({
 				'prompt.title': 'Full prompt for the {preset} preset',
 				'prompt.restoreDefault': 'Restore default',
 				'context.label': 'Read conversation context',
-				'context.description': 'Includes recent turns of the current conversation as reference DATA (never instructions) in the request.',
 				'model.label': 'Model source',
 				'model.groupLabel': 'Model source',
 				'model.follow': 'Follow session',
 				'model.fixed': 'Fixed model',
 				'model.followDescription': 'Use whatever model the current session is using.',
-				'menu.label': 'Model catalogue',
-				'menu.pickPrompt': 'Choose a model',
 				'menu.loading': 'Loading the model catalogue…',
 				'menu.loadFailed': 'Loading the model catalogue failed: {reason}',
 				'menu.effortDefault': 'Model default',
-				'eyebrow': 'SETTINGS · PROMPT REWRITER',
 				'model.pickLabel': 'Model',
 				'foot.unsaved': '{count} unsaved',
 				'foot.clean': 'No changes',
