@@ -1,0 +1,9 @@
+# .gitignore — dsh-prompt-refine
+
+# dependencies (lockfile IS committed: reproducible install)
+node_modules/
+
+# runtime / local state
+*.log
+.DS_Store
+Thumbs.db
