@@ -344,7 +344,8 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-actions{display:flex;align-items:center;gap:8px}',
 			// A2 布局：两列开关栅格、模型两列子字段、提示词 meta 行、吸底保存条
 			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px}',
-			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px}',
+			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px;min-width:0}',
+			'.dsh-pr-ctrl-text{flex:1;min-width:0}',
 			'.dsh-pr-ctrl-item .dsh-pr-switch{flex:none}',
 			'.dsh-pr-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px}',
 			'.dsh-pr-field-k{display:block;font:500 11px/1 var(--dsw-alias-label-tertiary,inherit);letter-spacing:.08em;margin-bottom:6px}',
@@ -354,7 +355,7 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-select:disabled{cursor:default;opacity:.5}',
 			'.dsh-pr-meta{display:flex;align-items:baseline;gap:8px;font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor);margin-bottom:6px}',
 			'.dsh-pr-meta .dsh-pr-grow{flex:1}',
-			'.dsh-pr-foot{position:sticky;bottom:0;z-index:2;display:flex;align-items:center;gap:10px;margin-top:4px;padding:12px 0 calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-0,transparent)}',
+			'.dsh-pr-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25))}',
 			'.dsh-pr-foot .dsh-pr-grow{flex:1}',
 			'.dsh-pr-count{font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'.dsh-pr-count[data-dirty="true"]{color:var(--dsw-alias-label-primary,currentColor)}',
@@ -1094,147 +1095,7 @@ window.__ModuleLoader__.load({
 		 * each button carries its own selection state, and arrow keys move between
 		 * members the way native radios do.
 		 */
-		/** The context and master switches, one accessible shape, two rows. */
-		function SwitchRow({ checked, onToggle, label, description, disabled }) {
-			return h(
-				'div',
-				{ className: 'dsh-pr-row' },
-				h(
-					'div',
-					{ className: 'dsh-pr-rowhead' },
-					h('span', { className: 'dsh-pr-label' }, label),
-					h('button', {
-						type: 'button',
-						className: 'dsh-pr-switch',
-						role: 'switch',
-						'aria-checked': checked === true,
-						disabled,
-						onClick: onToggle,
-					}, h('span', { className: 'dsh-pr-switch-knob' })),
-				),
-				h('p', { className: 'dsh-pr-sub' }, description),
-			);
-		}
-
-		/**
-		 * The pinned-model menu.
-		 *
-		 * The trigger shows the staged pair (or the invitation), the popup groups the
-		 * catalogue exactly as the Host serves it, and the note names the failure when
-		 * the catalogue itself could not load — a picker that silently showed an empty
-		 * list would look like a broken Host.
-		 */
-		function ModelMenu({ controller, t, disabled }) {
-			useSubscription(controller.catalog);
-			const catalog = controller.catalog.getSnapshot();
-			const [open, setOpen] = useState(false);
-			const view = controller.view;
-			const pair = stagedPair(view.provider, view.model);
-			const groups = catalog.groups;
-			const label = pair === null
-				? t('menu.pickPrompt')
-				: `${pair.provider} · ${pair.model}`;
-			const toggle = useCallback(() => {
-				setOpen((was) => {
-					const next = !was;
-					if (next) controller.catalog.load().catch(() => {});
-					return next;
-				});
-			}, [controller]);
-			return h(
-				'div',
-				{ className: 'dsh-pr-menu' },
-				h(
-					'button',
-					{
-						type: 'button',
-						className: 'dsh-pr-menu-btn',
-						'aria-haspopup': 'listbox',
-						'aria-expanded': open,
-						disabled,
-						onClick: toggle,
-					},
-					h('span', { className: 'dsh-pr-menu-label' }, label),
-					h('span', { className: 'dsh-pr-menu-caret', 'aria-hidden': true }, '▾'),
-				),
-				open && h(
-					'div',
-					{ className: 'dsh-pr-menu-pop', role: 'listbox', 'aria-label': t('menu.label') },
-					groups.length === 0
-						? h('p', { className: 'dsh-pr-menu-note', 'data-tone': catalog.error === null ? 'info' : 'error' },
-							catalog.error === null ? t('menu.loading') : t('menu.loadFailed', { reason: catalog.error }))
-						: groups.flatMap((group) => [
-							h('div', { key: `g:${group.id}`, className: 'dsh-pr-menu-groupname' }, group.name ?? group.id),
-							...(group.models ?? []).map((model) => h('button', {
-								key: `m:${group.id}:${model.id}`,
-								type: 'button',
-								className: 'dsh-pr-menu-opt',
-								role: 'option',
-								'aria-selected': pair !== null && pair.provider === group.id && pair.model === model.id,
-								onClick: () => {
-									controller.pickModel(group.id, model.id);
-									setOpen(false);
-								},
-							}, model.name ?? model.id)),
-						]),
-				),
-			);
-		}
-
 		/** Subscribe a component to any of this plugin's snapshot sources. */
-		/**
-		 * The reasoning-effort menu that belongs to the pinned model.
-		 *
-		 * Effort is a per-model capability, so the list comes from the catalogue entry
-		 * the user just picked — never from a plugin-owned enum. "Default" means "send
-		 * no effort and let the adapter apply that model's own default", which is the
-		 * only honest option for a model that advertises none.
-		 */
-		function EffortMenu({ controller, t, disabled }) {
-			useSubscription(controller.catalog);
-			const [open, setOpen] = useState(false);
-			const efforts = controller.effortsForPinnedModel();
-			const pair = stagedPair(controller.view.provider, controller.view.model);
-			if (pair === null || efforts.length === 0) return null;
-			const current = controller.view.reasoningEffort ?? '';
-			const label = current === ''
-				? t('menu.effortDefault')
-				: (efforts.find((effort) => effort.id === current)?.name ?? current);
-			const options = [{ id: '', name: t('menu.effortDefault') }]
-				.concat(efforts.map((effort) => ({ id: effort.id, name: effort.name ?? effort.id })));
-			return h(
-				'div',
-				{ className: 'dsh-pr-row' },
-				h('div', { className: 'dsh-pr-rowhead' }, h('span', { className: 'dsh-pr-label' }, t('model.effortLabel'))),
-				h(
-					'div',
-					{ className: 'dsh-pr-menu' },
-					h('button', {
-						type: 'button',
-						className: 'dsh-pr-menu-btn',
-						'aria-haspopup': 'listbox',
-						'aria-expanded': open,
-						disabled,
-						onClick: () => setOpen((was) => !was),
-					},
-						h('span', { className: 'dsh-pr-menu-label' }, label),
-						h('span', { className: 'dsh-pr-menu-caret', 'aria-hidden': true }, '\u25be'),
-					),
-					open && h('div', { className: 'dsh-pr-menu-pop', role: 'listbox', 'aria-label': t('model.effortLabel') },
-						options.map((option) => h('button', {
-							key: `e:${option.id}`,
-							type: 'button',
-							className: 'dsh-pr-menu-opt',
-							role: 'option',
-							'aria-selected': current === option.id,
-							onClick: () => { controller.selectEffort(option.id); setOpen(false); },
-						}, option.name)),
-					),
-				),
-				h('p', { className: 'dsh-pr-sub' }, t('model.effortHint')),
-			);
-		}
-
 		function useSubscription(source) {
 			const [, force] = useReducer((n) => n + 1, 0);
 			useEffect(() => source.subscribe(() => force()), [source]);
@@ -1270,7 +1131,7 @@ window.__ModuleLoader__.load({
 					'aria-label': t('prompt.title', { preset: t(`preset.${preset}`) }),
 					onChange: (event) => controller.editPrompt(preset, event.target.value),
 				}),
-				h('p', { className: 'dsh-pr-sub' }, t('prompt.hint')),
+
 			);
 		}
 
@@ -1291,6 +1152,12 @@ window.__ModuleLoader__.load({
 			const view = controller.view;
 			const writable = stateWritable(state);
 			const block = controller.block;
+			// The catalogue is loaded when the page mounts: a native `<select>` has no
+			// "opened, so fetch now" moment the old custom Menu had. Without this the
+			// fixed-model list stays empty and the select stays disabled.
+			useEffect(() => {
+				controller.catalog.load().catch(() => {});
+			}, [controller]);
 			const saveDisabled = !writable || state === 'saving' || block !== null;
 			const discardDisabled = !writable || state === 'saving'
 				|| draftEquals(controller.draft, emptyDraft());
@@ -1303,13 +1170,14 @@ window.__ModuleLoader__.load({
 					className: 'dsh-pr-state',
 					'data-tone': state === 'failed' || block !== null ? 'failed' : state === 'dirty' || state === 'saving' ? 'busy' : 'idle',
 				}, block !== null ? t(block) : t(`page.${state}`)),
-				h(
-					'div',
-					{ className: 'dsh-pr-row' },
+				h('div', { className: 'dsh-pr-ctrl-grid' },
 					h(
 						'div',
-						{ className: 'dsh-pr-rowhead' },
-						h('span', { className: 'dsh-pr-label' }, t('enabled.label')),
+						{ className: 'dsh-pr-ctrl-item' },
+						h('div', { className: 'dsh-pr-ctrl-text' },
+							h('div', { className: 'dsh-pr-label' }, t('enabled.label')),
+							h('div', { className: 'dsh-pr-sub' }, t('enabled.description')),
+						),
 						h('button', {
 							type: 'button',
 							className: 'dsh-pr-switch',
@@ -1319,7 +1187,21 @@ window.__ModuleLoader__.load({
 							onClick: () => controller.toggleEnabled(),
 						}, h('span', { className: 'dsh-pr-switch-knob' })),
 					),
-					h('p', { className: 'dsh-pr-sub' }, t('enabled.description')),
+					h(
+						'div',
+						{ className: 'dsh-pr-ctrl-item' },
+						h('div', { className: 'dsh-pr-ctrl-text' },
+							h('div', { className: 'dsh-pr-label' }, t('context.label')),
+						),
+						h('button', {
+							type: 'button',
+							className: 'dsh-pr-switch',
+							role: 'switch',
+							'aria-checked': view.contextEnabled === true,
+							disabled: !writable,
+							onClick: () => controller.toggleContext(),
+						}, h('span', { className: 'dsh-pr-switch-knob' })),
+					),
 				),
 				h(
 					'div',
@@ -1337,13 +1219,7 @@ window.__ModuleLoader__.load({
 				...PRESET_KEYS.map((preset) => preset === normalizePreset(view.preset)
 					? h(PromptEditor, { key: preset, controller, preset, t, disabled: !writable })
 					: null),
-				h(SwitchRow, {
-					checked: view.contextEnabled === true,
-					onToggle: () => controller.toggleContext(),
-					label: t('context.label'),
-					description: t('context.description'),
-					disabled: !writable,
-				}),
+
 				h(
 					'div',
 					{ className: 'dsh-pr-row' },
@@ -1398,12 +1274,10 @@ window.__ModuleLoader__.load({
 									key: option.id || '(default)',
 									value: option.id,
 								}, option.name)))),
-							h('p', { className: 'dsh-pr-sub' }, t('model.effortHint')),
+
 						)
 						: h('p', { className: 'dsh-pr-sub' }, t('model.followDescription')),
-					view.modelMode === 'fixed'
-						? h('p', { className: 'dsh-pr-sub' }, t('model.fixedDescription'))
-						: null,
+
 				),
 				h(
 					'div',
@@ -1791,7 +1665,6 @@ window.__ModuleLoader__.load({
 				'preset.translation': '翻译',
 				'preset.description': '切换只是查看/编辑哪一套提示词；点「保存」后才写入当前预设。',
 				'prompt.title': '{preset}预设的完整提示词',
-				'prompt.hint': '这里是完整提示词全文，会作为系统提示直接发给模型。清空内容并保存＝清除自定义、恢复内置默认；「恢复默认」按钮的作用相同。',
 				'prompt.restoreDefault': '恢复默认',
 				'context.label': '读取会话上下文',
 				'context.description': '开启后会把当前会话最近的发言作为参考数据一并发出（只作数据，不作指令）。',
@@ -1800,7 +1673,6 @@ window.__ModuleLoader__.load({
 				'model.follow': '跟随会话',
 				'model.fixed': '固定模型',
 				'model.followDescription': '使用当前会话正在使用的模型。',
-				'model.fixedDescription': '无论会话使用什么模型，改写一律走这里固定的模型；未选择时无法保存。',
 				'menu.label': '模型目录',
 				'menu.pickPrompt': '选择一个模型',
 				'menu.loading': '正在加载模型目录…',
@@ -1811,7 +1683,6 @@ window.__ModuleLoader__.load({
 				'foot.unsaved': '未保存 {count} 项',
 				'foot.clean': '未修改',
 				'model.effortLabel': '思考强度',
-				'model.effortHint': '只对固定模型生效；跟随会话时沿用会话自己的思考强度。',
 				'action.save': '保存',
 				'action.saving': '正在保存…',
 				'action.discard': '放弃更改',
@@ -1859,7 +1730,6 @@ window.__ModuleLoader__.load({
 				'preset.translation': 'Translation',
 				'preset.description': 'Switching only changes which prompt you are viewing and editing; saving writes the selected preset.',
 				'prompt.title': 'Full prompt for the {preset} preset',
-				'prompt.hint': 'This is the complete prompt sent to the model as its system prompt. Saving an empty box clears the override and restores the built-in default; "Restore default" does the same.',
 				'prompt.restoreDefault': 'Restore default',
 				'context.label': 'Read conversation context',
 				'context.description': 'Includes recent turns of the current conversation as reference DATA (never instructions) in the request.',
@@ -1868,7 +1738,6 @@ window.__ModuleLoader__.load({
 				'model.follow': 'Follow session',
 				'model.fixed': 'Fixed model',
 				'model.followDescription': 'Use whatever model the current session is using.',
-				'model.fixedDescription': 'Refinements always run on the pinned model, whatever the session uses; without a selection the save is blocked.',
 				'menu.label': 'Model catalogue',
 				'menu.pickPrompt': 'Choose a model',
 				'menu.loading': 'Loading the model catalogue…',
@@ -1879,7 +1748,6 @@ window.__ModuleLoader__.load({
 				'foot.unsaved': '{count} unsaved',
 				'foot.clean': 'No changes',
 				'model.effortLabel': 'Reasoning effort',
-				'model.effortHint': 'Applies to the fixed model only; follow-session mode keeps the session\'s own effort.',
 				'action.save': 'Save',
 				'action.saving': 'Saving…',
 				'action.discard': 'Discard changes',
