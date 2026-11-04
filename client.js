@@ -1375,7 +1375,7 @@ window.__ModuleLoader__.load({
 								h('select', {
 									className: 'dsh-pr-select',
 									'aria-label': t('model.pickLabel'),
-									disabled: !writable || catalogStatus() !== 'ready',
+									disabled: !writable || controller.catalog.getSnapshot().status !== 'ready',
 									value: stagedPair(view.provider, view.model) === null ? '' : `${view.provider}\u0000${view.model}`,
 									onChange: (event) => {
 										const [provider, model] = event.target.value.split('\u0000');
