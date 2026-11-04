@@ -1174,7 +1174,6 @@ window.__ModuleLoader__.load({
 						{ className: 'dsh-pr-ctrl-item' },
 						h('div', { className: 'dsh-pr-ctrl-text' },
 							h('div', { className: 'dsh-pr-label' }, t('enabled.label')),
-							h('div', { className: 'dsh-pr-sub' }, t('enabled.description')),
 						),
 						h('button', {
 							type: 'button',
@@ -1653,7 +1652,6 @@ window.__ModuleLoader__.load({
 				'nav': '提示词优化',
 				'title': '提示词优化设置',
 				'enabled.label': '启用提示词优化',
-				'enabled.description': '关闭后隐藏输入框旁的优化按钮，但保留这里的设置。',
 				'preset.groupLabel': '预设',
 				'preset.general': '通用',
 				'preset.code': '编程',
@@ -1716,7 +1714,6 @@ window.__ModuleLoader__.load({
 				'nav': 'Prompt Refine',
 				'title': 'Prompt refinement settings',
 				'enabled.label': 'Enable prompt refinement',
-				'enabled.description': 'Hides the control beside the composer; the settings below are kept.',
 				'preset.groupLabel': 'Preset',
 				'preset.general': 'General',
 				'preset.code': 'Code',
