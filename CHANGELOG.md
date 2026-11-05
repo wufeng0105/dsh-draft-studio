@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.0.16 — 2026-11-05
+
+v1.0.15 审计（`AUDIT-V115.md`，8 项全 PASS、2 处必修）后的修复。
+
+### 安全
+
+- **跨站请求可触发模型调用**：`/refine` 此前只校验 `Host` 头。`Host` 证明请求指向本插件，不证明是谁发的——恶意网页可用 CORS「简单请求」（`text/plain`，无预检）POST 到 loopback 端口，插件会拿用户的模型额度跑别人的草稿。新增 `isTrustedOrigin()`：`Origin` 若存在必须是 loopback，且 `Content-Type` 必须是 `application/json`。四种场景实测：正常放行、伪造 Origin 拦截、`text/plain` 拦截、loopback Origin 放行。
+
+### 清单
+
+- **`engines.dsh` 覆盖全部 0.2.x 预发布**：单一 `||` 分支仍会排除 `0.2.2+` 的 rc 元组（node-semver 要求范围里存在与该版本 `major.minor.patch` 完全一致且自身带预发布标签的比较符）。现显式列举 `0.2.1`–`0.2.9` 九条分支，实测全部 rc 匹配、`0.3.x` 正确排除。
+- 补 `dsh.client.inject: ["@deepseek-ai/dsh-client-ui-conversation"]`。
+
+### 身份与注释
+
+- `client.js` 英文导航 `Prompt Refine` → `Draft Studio`；`icon.svg` 的 `aria-label` 同步。
+- `index.js` 第 3 条承重事实改为描述 `peerDependencies` 实际实现。
+
+### 自检脚本
+
+新增 `scripts/self-check.ps1`（`npm run self-check`）：DSH 升级后跑一次，四层验证。已用三类红灯（语法错、engines 无 `||`、files 缺项）验证它会报警。
 ## 1.0.15 — 2026-11-05
 
 发布就绪改造（对照 DSH 官方插件规范 `cordis-plugin-development`）。
