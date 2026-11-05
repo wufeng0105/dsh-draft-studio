@@ -1,5 +1,5 @@
 {
-  "name": "dsh-prompt-refine",
+  "name": "dsh-draft-studio",
   "version": "1.0.14",
   "private": true,
   "description": "Prompt Refine: refine a composer draft into a clearer prompt. This build installs the bundle shell only (no refinement logic yet).",

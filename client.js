@@ -1,5 +1,5 @@
 /**
- * dsh-prompt-refine — browser half.
+ * dsh-draft-studio — browser half.
  *
  * One compact control beside the composer submit action. Click it and the draft in
  * the composer is replaced by a refined prompt; click again to put the original back.
@@ -35,7 +35,7 @@
  * switch, the four-preset segmented control over the full prompt texts, the context
  * switch, and the model source (follow the session, or pin a provider/model pair from
  * the shared catalogue). Every read and write on that page goes through
- * `ctx.configForms.get('dsh-prompt-refine')` — the Host's own settings document — so
+ * `ctx.configForms.get('dsh-draft-studio')` — the Host's own settings document — so
  * the page contains no transport of its own: no request code, no profile files, no
  * private endpoints. Staged edits survive failed saves; an emptied prompt box and the
  * "restore default" button both clear the override (`unset`), which hands the field
@@ -45,17 +45,17 @@
  * resource is registered inside `apply` with the owner's effect scope.
  */
 window.__ModuleLoader__.load({
-	id: 'dsh-prompt-refine',
+	id: 'dsh-draft-studio',
 	factory(require) {
 		const React = require('react');
 		const h = React.createElement;
 		const { useCallback, useEffect, useMemo, useReducer, useRef, useState } = React;
 
 		/** Locale namespace — also the Host entry id the settings form is read under. */
-		const NS = 'dsh-prompt-refine';
+		const NS = 'dsh-draft-studio';
 
 		/** Product route registered by the Host half. */
-		const REFINE_PATH = '/dsh-prompt-refine/refine';
+		const REFINE_PATH = '/dsh-draft-studio/refine';
 
 		/**
 		 * The browser request primitive for the one product route this plugin owns.
@@ -790,7 +790,7 @@ window.__ModuleLoader__.load({
 		 *
 		 * React-hostile on purpose — it is constructed once per mounted page and
 		 * mutated in place, with `onChange` notifying React that something changed.
-		 * All writes go through `ctx.configForms.get('dsh-prompt-refine')`: `mutate`
+		 * All writes go through `ctx.configForms.get('dsh-draft-studio')`: `mutate`
 		 * for the atomic multi-field save, `unset` for restore-default and for an
 		 * emptied prompt. The controller never touches the network.
 		 */
@@ -1765,21 +1765,21 @@ window.__ModuleLoader__.load({
 			 */
 				inject: ['slots', 'locale'],
 			apply(ctx) {
-				ctx.effect(installStyles, 'dsh-prompt-refine: styles');
+				ctx.effect(installStyles, 'dsh-draft-studio: styles');
 				ctx.effect(
 					() => ctx.locale.register(NS, DICTIONARY),
-					'dsh-prompt-refine: dictionaries',
+					'dsh-draft-studio: dictionaries',
 				);
 				// The seat itself: one list entry beside the submit action, scoped to the
 				// session by the slot's own contract.
 				ctx.slots.inject('conversation.input.right', () =>
 					ctx.slots.register(
-						{ name: 'conversation.input.right', id: 'dsh-prompt-refine', order: 60, locale: NS },
+						{ name: 'conversation.input.right', id: 'dsh-draft-studio', order: 60, locale: NS },
 						RefineControl,
 					),
 				);
 				// The settings page. It has NO transport of its own: every read and write
-				// goes through `ctx.configForms.get('dsh-prompt-refine')` — the Host
+				// goes through `ctx.configForms.get('dsh-draft-studio')` — the Host
 				// settings document, with its write queue, revision fencing and conflict
 				// recovery — and the model menu reads `ctx.remote.session.modelCatalog()`,
 				// the same projection the composer's model seat consumes.
@@ -1795,13 +1795,13 @@ window.__ModuleLoader__.load({
 						const controller = new SettingsPageController(scope, pageT);
 						scope.effect(
 							() => () => controller.dispose(),
-							'dsh-prompt-refine: settings page',
+							'dsh-draft-studio: settings page',
 						);
 						scope.slots.inject('settings.section', () =>
 							scope.slots.register(
 								{
 									name: 'settings.section',
-									id: 'dsh-prompt-refine',
+									id: 'dsh-draft-studio',
 									order: 60,
 									label: () => pageT('nav'),
 									locale: NS,

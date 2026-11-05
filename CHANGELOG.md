@@ -182,5 +182,5 @@
 
 - 设置读写全部走宿主 `ctx.configForms`；不自建 HTTP 设置通道，不写 profile 文件。
 - 不 require 任何 `@deepseek-ai/*` 客户端包（官方插件开发指南要求复制模式而非引用内部模块）；样式只用 `--dsw-alias-*` token。
-- 改写路由为 `POST /dsh-prompt-refine/refine`（`webServer` 载体，带回环 `Host` 准入与 1 MiB body 上限）。
+- 改写路由为 `POST /dsh-draft-studio/refine`（`webServer` 载体，带回环 `Host` 准入与 1 MiB body 上限）。
 - Config 14 字段全部 `.volatile()`（10 可见 + 4 隐藏调优项）。

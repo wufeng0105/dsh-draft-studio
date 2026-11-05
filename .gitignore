@@ -1,4 +1,4 @@
-# .gitignore — dsh-prompt-refine
+# .gitignore — dsh-draft-studio
 
 # dependencies (lockfile IS committed: reproducible install)
 node_modules/

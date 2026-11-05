@@ -3,5 +3,5 @@
 # in package.json makes the web app load ./client as the browser half.
 # Entry id is globally unique — a duplicate id is filtered out of the settings editor.
 - insert:
-    - id: dsh-prompt-refine
-      name: dsh-prompt-refine
+    - id: dsh-draft-studio
+      name: dsh-draft-studio

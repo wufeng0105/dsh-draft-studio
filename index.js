@@ -1,5 +1,5 @@
 /**
- * dsh-prompt-refine — Host half.
+ * dsh-draft-studio — Host half.
  *
  * Owns the Host-side pipeline that refines a composer draft into a clearer prompt:
  * the Config schema, the three-level model route, context assembly, and the
@@ -829,7 +829,7 @@ async function refine(scope, config, request, signal, infoCache) {
 // ---------------------------------------------------------------------------
 
 /** Product route the composer button calls. */
-const REFINE_PATH = '/dsh-prompt-refine/refine';
+const REFINE_PATH = '/dsh-draft-studio/refine';
 
 /**
  * Write one JSON envelope onto a raw Node response.
@@ -1013,7 +1013,7 @@ export function apply(ctx, config) {
 	// Model metadata changes only when the route does, so one memo per lifetime is
 	// enough; it dies with the plugin.
 	const infoCache = new Map();
-	ctx.effect(() => () => lifetime.abort(), 'dsh-prompt-refine: cancel in-flight requests on unload');
+	ctx.effect(() => () => lifetime.abort(), 'dsh-draft-studio: cancel in-flight requests on unload');
 
 	ctx.inject(['llm', 'webServer'], (scope) => {
 		scope.effect(
@@ -1024,7 +1024,7 @@ export function apply(ctx, config) {
 					handler: (request, response) =>
 						handleRefine(scope, config, request, response, lifetime.signal, infoCache),
 				}),
-			'dsh-prompt-refine: refinement route',
+			'dsh-draft-studio: refinement route',
 		);
 	});
 }

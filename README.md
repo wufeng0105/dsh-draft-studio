@@ -1,4 +1,4 @@
-# dsh-prompt-refine
+# dsh-draft-studio
 
 输入框旁的提示词优化按钮：把草稿改写成更清晰、更完整的提示词，原位写回，不自动发送。只适配 DeepSeek Harness 自身——模型、设置、撤销全部走宿主官方接口。
 
@@ -68,7 +68,7 @@
 
 | 文件 | 职责 |
 |---|---|
-| `index.js` | 宿主半包：Config schema（15 字段全 volatile）、三级模型路由（固定 → 会话投影 → 部署默认）、上下文装配（deriveMessages → 裁剪 → JSON）、`generate`（finish.kind 分派 + 预算翻倍重试 + 强度回退）、`POST /dsh-prompt-refine/refine`（loopback 栅栏 + 1 MiB 上限 + 超时） |
+| `index.js` | 宿主半包：Config schema（15 字段全 volatile）、三级模型路由（固定 → 会话投影 → 部署默认）、上下文装配（deriveMessages → 裁剪 → JSON）、`generate`（finish.kind 分派 + 预算翻倍重试 + 强度回退）、`POST /dsh-draft-studio/refine`（loopback 栅栏 + 1 MiB 上限 + 超时） |
 | `client.js` | 浏览器半包：按钮四态、`insertText` 写回（draftRev 守卫 + 芯片坐标折算）、一键回退、模块级任务注册表（切会话不中断）、设置页（configForms 读写 + modelCatalog + 思考强度菜单）、中英文案 |
 | `cordis.patch.yml` | 插件装载声明（一行 insert，entry id 全局唯一） |
 | `package.json` | `dsh.bundle.patch` + `dsh.client.platform: web`；依赖仅 `@deepseek-ai/schemastery` |
