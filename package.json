@@ -8,6 +8,9 @@
   "bugs": { "url": "https://github.com/wufeng0105/dsh-draft-studio/issues" },
   "keywords": ["dsh", "dsh-plugin", "prompt", "composer", "prompt-engineering"],
   "type": "module",
+  "scripts": {
+    "self-check": "pwsh -NoProfile -File scripts/self-check.ps1"
+  },
   "icon": "icon.svg",
   "exports": {
     ".": "./index.js",
@@ -24,7 +27,8 @@
     "README.md",
     "CHANGELOG.md",
     "LICENSE",
-    "docs/*.md"
+    "docs/*.md",
+    "scripts/*.ps1"
   ],
   "dsh": {
     "bundle": {

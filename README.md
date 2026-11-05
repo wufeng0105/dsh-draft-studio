@@ -81,6 +81,17 @@ link 安装下改代码即时生效；`git commit` 留版本。
 
 改造入口：提示词文本看 `index.js` 的 `PROMPT_BASE` / `PRESETS`；交互看 `client.js` 的 `RefineControl`；模型路由看 `index.js` 的 `resolveRoute`；设置页控件看 `client.js` 的 `SettingsSection`。
 
-## 7. 工程记录
+## 7. DSH 升级后自检
 
+DSH 每升一次版本，先跑这个，三十秒内知道插件还活着没有：
+
+```powershell
+./scripts/self-check.ps1
+```
+
+check 四层：源码语法 → 清单契约（`dsh.bundle.patch`、`peerDependencies`、`engines` 预发布分支、`files` 覆盖、locale 元数据）→ 宿主运行时（进程、端口、profile 安装）→ 端到端（真机打一次 `/refine`）。任一失败会给出可操作的提示与退出码 1；只想验证不花模型额度就加 `-SkipLive`。
+
+host 大版本升级最可能坏在两处：`engines.dsh` 的预发布范围把新 rc 排除、以及官方库从 `peerDependencies` 变成必须在 `dependencies` 里（或反之）——这两条脚本都会直接报出来。
+
+## 8. 工程记录
 设计决定的原因、两次独立审计的结论、真机缺陷修复史见 [`docs/PROJECT-NOTES.md`](docs/PROJECT-NOTES.md)。
