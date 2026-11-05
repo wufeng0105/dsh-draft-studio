@@ -1037,12 +1037,17 @@ window.__ModuleLoader__.load({
 					this.notify();
 					return;
 				}
-				const sets = [];
-				const clears = [];
+				// Sets and clears go out as ONE mutation. Splitting them (a `mutate` for
+				// the sets, then one `unset` per cleared field) gave each write its own
+				// revision, so a concurrent writer landing between them could leave the
+				// batch half-applied: the sets committed, the clears rejected — or the
+				// reverse — with the UI reporting a single outcome. The Host accepts a
+				// mixed op array in one call, and the fence then covers the whole batch.
+				const operations = [];
 				for (const [field, value] of Object.entries(this.draft)) {
 					if (value === undefined) continue;
-					if (isFieldClear(field, value)) clears.push(field);
-					else sets.push({ op: 'set', path: [field], value });
+					if (isFieldClear(field, value)) operations.push({ op: 'unset', path: [field] });
+					else operations.push({ op: 'set', path: [field], value });
 				}
 				this.saving = true;
 				this.failed = false;
@@ -1050,16 +1055,10 @@ window.__ModuleLoader__.load({
 				try {
 					let ok = true;
 					// The fence is the revision the batch was staged against: if another
-					// browser moved the document meanwhile, the Host refuses and the
-					// draft survives as `failed` (the form's own conflict recovery then
-					// refolds the mirror).
-					if (sets.length > 0) ok = await this.form.mutate(sets, this.stagedRevision) === true;
-					if (ok) {
-						for (const field of clears) {
-							ok = await this.form.unset(field) === true;
-							if (!ok) break;
-						}
-					}
+					// browser moved the document meanwhile, the Host refuses the whole
+					// batch and the draft survives as `failed` (the form's own conflict
+					// recovery then refolds the mirror).
+					if (operations.length > 0) ok = await this.form.mutate(operations, this.stagedRevision) === true;
 					if (!ok) {
 						// A conflict moved the document under us. Re-read the fence so the
 						// next attempt is compared against the CURRENT revision — otherwise
@@ -1266,7 +1265,14 @@ window.__ModuleLoader__.load({
 									className: 'dsh-pr-select',
 									'aria-label': t('model.effortLabel'),
 									disabled: !writable,
-									value: view.reasoningEffort ?? '',
+									// The stored effort may name a level the CURRENT model does not
+									// advertise (the pin changed, or the document predates it). A
+									// value outside the option set renders as a blank select, so it
+									// is normalised to "model default" for display; the stored value
+									// itself is left untouched until the user saves.
+									value: effortOptions(controller).some((option) => option.id === (view.reasoningEffort ?? ''))
+										? (view.reasoningEffort ?? '')
+										: '',
 									onChange: (event) => controller.selectEffort(event.target.value),
 								}, effortOptions(controller).map((option) => h('option', {
 									key: option.id || '(default)',
