@@ -64,7 +64,7 @@
 
 ## 6. 源码地图
 
-纯 JavaScript，无构建；`node --check` + 两个行为 harness 即验证（`.zhll/gates/` 不在仓内，见工程账本）。
+纯 JavaScript，无构建；验证方式为 `node --check` + 真机操作（无 lint / 类型检查 / 测试套件）。
 
 | 文件 | 职责 |
 |---|---|
@@ -78,4 +78,4 @@
 
 ## 7. 工程记录
 
-开发批次史、验收证据、独立审计报告不在本仓，见工作区 `.zhll/`（`00-roadmap.md` 为账本入口，`10-独立审计.md` 为审计报告）。
+设计决定的原因、两次独立审计的结论、真机缺陷修复史、已知限制的来龙去脉，见 [`docs/PROJECT-NOTES.md`](docs/PROJECT-NOTES.md)。
