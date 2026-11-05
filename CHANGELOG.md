@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.17 — 2026-11-05
+
+发布链路与对外文案。
+
+### 新增
+
+- **`RELEASE.md`**：本项目自己的发布流程（commit → tag → Release → npm），判决标准是「tag 里的源码 == Release 资产 == npm 包」字节级同源。含本仓特有的三个坑：依赖必须留在 `peerDependencies`、`engines.dsh` 不能合并成单一范围、`/refine` 的两种 403 是设计行为。
+- **`scripts/check-version.mjs`**（`npm run check-version`）：版本一致性门禁，断言 package.json version ↔ CHANGELOG 节 ↔ git tag ↔ `engines.dsh` 的 `||`。打 tag 前用 `--allow-untagged`。
+- `npm run self-check` 与 `npm run check-version` 两个入口。
+
+### 文案
+
+- **README 重写为「大白话开头」**：第一句就说清这个按钮干什么（「输入框里那个想到一半的草稿，点一下，变成 AI 真能照着干的提示词」），然后用一个真实例子展示改写前后差异，再进安装与用法。原版是功能清单式开头，读者要读三段才知道它解决什么问题。
+- locale 中英描述同步改成同一口径，市场卡片第一眼就能抓住人。
+- `package.json` description 精简为一句。
+
+### 打包
+
+- `files` 补 `RELEASE.md`、`scripts/*.ps1`、`scripts/*.mjs`；`npm pack` 14 个文件。
 ## 1.0.16 — 2026-11-05
 
 v1.0.15 审计（`AUDIT-V115.md`，8 项全 PASS、2 处必修）后的修复。

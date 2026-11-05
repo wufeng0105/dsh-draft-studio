@@ -1,15 +1,16 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.0.16",
+  "version": "1.0.17",
 
-  "description": "Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a choice between following the session model or pinning one.",
+  "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow - rewritten in place, one click, never sent.",
   "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },
   "homepage": "https://github.com/wufeng0105/dsh-draft-studio#readme",
   "bugs": { "url": "https://github.com/wufeng0105/dsh-draft-studio/issues" },
   "keywords": ["dsh", "dsh-plugin", "prompt", "composer", "prompt-engineering"],
   "type": "module",
   "scripts": {
-    "self-check": "pwsh -NoProfile -File scripts/self-check.ps1"
+    "self-check": "pwsh -NoProfile -File scripts/self-check.ps1",
+    "check-version": "node scripts/check-version.mjs"
   },
   "icon": "icon.svg",
   "exports": {
@@ -26,9 +27,11 @@
     "icon.svg",
     "README.md",
     "CHANGELOG.md",
+    "RELEASE.md",
     "LICENSE",
     "docs/*.md",
-    "scripts/*.ps1"
+    "scripts/*.ps1",
+    "scripts/*.mjs"
   ],
   "dsh": {
     "bundle": {
