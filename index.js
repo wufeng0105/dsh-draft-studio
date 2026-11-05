@@ -3,8 +3,7 @@
  *
  * Owns the Host-side pipeline that refines a composer draft into a clearer prompt:
  * the Config schema, the three-level model route, context assembly, and the
- * generation loop. The browser half (button, picker, settings page) arrives in
- * later batches; this file is the whole server side.
+ * generation loop. The browser half lives in `client.js`.
  *
  * ## Three load-bearing facts about this runtime
  *
@@ -21,13 +20,12 @@
  *    would silently serve stale values — the documented failure mode of this
  *    profile's plugin ecosystem.
  *
- * 3. **The schema library is resolved through the host runtime table.** This
- *    package is installed as a *linked* directory outside the profile, so a bare
- *    `@deepseek-ai/schemastery` import resolves only because `package.json`
- *    declares it under `peerDependencies` (the documented linked-root rule). The
- *    import is guarded: if the runtime table of some future host lacks the schema
- *    library, the plugin still activates, just without a settings schema, instead
- *    of failing the whole row.
+ * 3. **The schema library is declared as a normal dependency.** The package is
+ *    installed as a linked directory, so Node resolves `@deepseek-ai/schemastery`
+ *    from this package's own `node_modules`. (The host ships the same library, but
+ *    relying on that would tie the plugin to a host-internal path.) The import is
+ *    guarded anyway: a host that cannot resolve it still activates the plugin,
+ *    just without a settings schema, instead of failing the whole row.
  */
 
 /**

@@ -2,7 +2,7 @@
   "name": "dsh-draft-studio",
   "version": "1.0.14",
   "private": true,
-  "description": "Prompt Refine: refine a composer draft into a clearer prompt. This build installs the bundle shell only (no refinement logic yet).",
+  "description": "Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a choice between following the session model or pinning one.",
   "type": "module",
   "icon": "icon.svg",
   "exports": {

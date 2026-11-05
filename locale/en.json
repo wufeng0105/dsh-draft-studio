@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Prompt Refine",
-    "description": "Refines a composer draft into a clearer prompt without sending it. This build installs the plugin shell only; refinement arrives in later batches."
+    "title": "Draft Studio",
+    "description": "Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a choice between following the session model or pinning one."
   }
 }

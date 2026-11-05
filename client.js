@@ -31,10 +31,11 @@
  *
  * ## The settings page (same file, second seat)
  *
- * A `settings.section` page exposes the plugin's nine visible preferences: the master
- * switch, the four-preset segmented control over the full prompt texts, the context
- * switch, and the model source (follow the session, or pin a provider/model pair from
- * the shared catalogue). Every read and write on that page goes through
+ * A `settings.section` page exposes the plugin's visible preferences: two switches
+ * (master, conversation context), a preset dropdown over the complete prompt texts,
+ * a textarea for the active preset's text, and the model source — a segmented
+ * follow/pin control that, when pinned, reveals two dropdowns (model, reasoning
+ * effort) fed from the shared catalogue. Every read and write on that page goes through
  * `ctx.configForms.get('dsh-draft-studio')` — the Host's own settings document — so
  * the page contains no transport of its own: no request code, no profile files, no
  * private endpoints. Staged edits survive failed saves; an emptied prompt box and the
@@ -1083,14 +1084,6 @@ window.__ModuleLoader__.load({
 		// Settings: the page
 		// -------------------------------------------------------------------
 
-		/**
-		 * The preset segmented control.
-		 *
-		 * A radiogroup of buttons is the accessible shape for "pick one of four" that
-		 * survives without the primitives package: the container announces the group,
-		 * each button carries its own selection state, and arrow keys move between
-		 * members the way native radios do.
-		 */
 		/** Subscribe a component to any of this plugin's snapshot sources. */
 		function useSubscription(source) {
 			const [, force] = useReducer((n) => n + 1, 0);
