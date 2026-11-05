@@ -1,6 +1,6 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.0.15",
+  "version": "1.0.16",
 
   "description": "Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a choice between following the session model or pinning one.",
   "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },
@@ -36,14 +36,15 @@
     },
     "client": {
       "platform": "web",
-      "immediately": true
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
     }
   },
   "peerDependencies": {
     "@deepseek-ai/schemastery": ">=3.0.0 || >=3.18.0-0 <4.0.0"
   },
   "engines": {
-    "dsh": ">=0.2.1-rc.5 <0.3.0-0 || >=0.2.2-rc.0 <0.3.0",
+    "dsh": ">=0.2.1-rc.5 <0.3.0-0 || >=0.2.2-rc.0 <0.3.0-0 || >=0.2.3-rc.0 <0.3.0-0 || >=0.2.4-rc.0 <0.3.0-0 || >=0.2.5-rc.0 <0.3.0-0 || >=0.2.6-rc.0 <0.3.0-0 || >=0.2.7-rc.0 <0.3.0-0 || >=0.2.8-rc.0 <0.3.0-0 || >=0.2.9-rc.0 <0.3.0-0",
     "node": ">=20.3.0"
   },
   "license": "MIT"

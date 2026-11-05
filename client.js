@@ -1709,7 +1709,7 @@ window.__ModuleLoader__.load({
 				'state.refusedAdjudicating': 'The composer is handling the previous input, so the result was not written. It is kept — click to retry.',
 				'state.refusedStale': 'The draft changed, so the result did not replace it. It is kept — click to retry.',
 				'state.refusedMapping': 'The composer did not accept the replacement. The result is kept — click to retry.',
-				'nav': 'Prompt Refine',
+				'nav': 'Draft Studio',
 				'title': 'Prompt refinement settings',
 				'enabled.label': 'Enable prompt refinement',
 				'preset.groupLabel': 'Preset',

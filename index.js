@@ -20,12 +20,11 @@
  *    would silently serve stale values — the documented failure mode of this
  *    profile's plugin ecosystem.
  *
- * 3. **The schema library is declared as a normal dependency.** The package is
- *    installed as a linked directory, so Node resolves `@deepseek-ai/schemastery`
- *    from this package's own `node_modules`. (The host ships the same library, but
- *    relying on that would tie the plugin to a host-internal path.) The import is
- *    guarded anyway: a host that cannot resolve it still activates the plugin,
- *    just without a settings schema, instead of failing the whole row.
+ * 3. **The schema library is a `peerDependencies` entry, supplied by the host.**
+ *    This package ships no `node_modules`; the import resolves through the host's
+ *    own runtime, which bundles `@deepseek-ai/schemastery`. The import is guarded:
+ *    a host that cannot resolve it still activates the plugin, just without a
+ *    settings schema, instead of failing the whole row.
  */
 
 /**
@@ -903,6 +902,13 @@ async function handleRefine(scope, config, request, response, signal, infoCache)
 		sendJson(response, 403, { ok: false, code: 'UNTRUSTED_ORIGIN', text: '', finish: 'forbidden', error: 'loopback requests only' });
 		return;
 	}
+	// The Host header proves the request was addressed to us, not who sent it: a
+	// hostile page can reach a loopback port with a CORS "simple" POST. Origin and
+	// Content-Type tell the two apart (see isTrustedOrigin).
+	if (!isTrustedOrigin(request)) {
+		sendJson(response, 403, { ok: false, code: 'UNTRUSTED_ORIGIN', text: '', finish: 'forbidden', error: 'cross-site requests are not served' });
+		return;
+	}
 	let body;
 	try {
 		body = await readJsonBody(request);
@@ -973,6 +979,40 @@ async function handleRefine(scope, config, request, response, signal, infoCache)
  * @param request - the incoming request.
  * @returns true when the request may be served.
  */
+/**
+ * Rejects cross-site simple requests that a loopback Host check alone would pass.
+ *
+ * A `Host` header proves the request was aimed at us, not who sent it. A hostile
+ * page can POST `text/plain` (a CORS "simple request") to our loopback port and
+ * the browser will deliver it without any preflight — the plugin would then spend
+ * the user's model quota on someone else's draft. Two checks close that:
+ *
+ * - `Origin`, when present, must be loopback or the host's own web origin. A
+ *   same-origin fetch from the app sends it; a hostile page sends its own.
+ * - `Content-Type` must be `application/json`. That alone already forces a
+ *   preflight for cross-origin callers, which this endpoint never answers.
+ *
+ * @param request - the incoming HTTP request.
+ * @returns true when the request may be served.
+ */
+function isTrustedOrigin(request) {
+	const origin = request.headers?.origin;
+	if (typeof origin === 'string' && origin.length > 0) {
+		let parsed;
+		try {
+			parsed = new URL(origin);
+		} catch {
+			return false;
+		}
+		const host = parsed.hostname.replace(/^\[|\]$/gu, '').toLowerCase();
+		const loopback = host === '127.0.0.1' || host === 'localhost' || host === '::1';
+		if (!loopback) return false;
+	}
+	const type = request.headers?.['content-type'];
+	if (typeof type !== 'string') return false;
+	return type.split(';')[0].trim().toLowerCase() === 'application/json';
+}
+
 function isLoopbackRequest(request) {
 	const host = request.headers?.host;
 	if (typeof host !== 'string' || host.length === 0) return false;
