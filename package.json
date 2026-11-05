@@ -1,8 +1,12 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.0.14",
-  "private": true,
+  "version": "1.0.15",
+
   "description": "Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a choice between following the session model or pinning one.",
+  "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },
+  "homepage": "https://github.com/wufeng0105/dsh-draft-studio#readme",
+  "bugs": { "url": "https://github.com/wufeng0105/dsh-draft-studio/issues" },
+  "keywords": ["dsh", "dsh-plugin", "prompt", "composer", "prompt-engineering"],
   "type": "module",
   "icon": "icon.svg",
   "exports": {
@@ -16,7 +20,11 @@
     "client.js",
     "cordis.patch.yml",
     "locale/*.json",
-    "icon.svg"
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "docs/*.md"
   ],
   "dsh": {
     "bundle": {
@@ -27,11 +35,12 @@
       "immediately": true
     }
   },
-  "dependencies": {
-    "@deepseek-ai/schemastery": "^3.18.1"
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": ">=3.0.0 || >=3.18.0-0 <4.0.0"
   },
   "engines": {
-    "dsh": ">=0.2.1-rc.5 <0.3.0"
+    "dsh": ">=0.2.1-rc.5 <0.3.0-0 || >=0.2.2-rc.0 <0.3.0",
+    "node": ">=20.3.0"
   },
   "license": "MIT"
 }

@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.0.15 — 2026-11-05
+
+发布就绪改造（对照 DSH 官方插件规范 `cordis-plugin-development`）。
+
+### 打包与依赖
+
+- `@deepseek-ai/schemastery` 由 `dependencies` 改为 **`peerDependencies`**（`contributing.md:134` 要求）。实测：删除 `node_modules` 后 `Config` 仍以 `status: "schema"` 注册、15 字段完整，真机 200——由宿主运行时提供，插件不再自带副本。
+- 移除 `node_modules` 与 `pnpm-lock.yaml`（peer 方案下不需要）。
+- `files` 补齐 `README.md` / `CHANGELOG.md` / `LICENSE` / `docs/*.md`；`npm pack` 共 11 个文件。
+
+### 清单
+
+- 移除 `private: true`（允许发布）。
+- 新增 `repository` / `homepage` / `bugs` / `keywords`。
+- **修 `engines.dsh` 的预发布范围**：原 `>=0.2.1-rc.5 <0.3.0` 会静默排除 `0.2.2-rc.1`——宿主发下一个 rc 当天就无法安装。新范围用显式 `||` 分支，实测 `0.2.1-rc.5` 与 `0.2.2-rc.1` 均匹配、`0.3.x` 正确排除（`contributing.md:136` 专门警告此形状）。
+- 新增 `engines.node: >=20.3.0`（代码使用 `AbortSignal.any`）。
+
+### 仓库材料
+
+- 新增 `LICENSE`（MIT 全文）与 `.gitattributes`（`* text=auto eol=lf`，防 Windows 行尾导致打包字节与仓库不一致）。
+
+### 文档
+
+- 四份元数据（`package.json` description、两份 locale、README）统一改为描述已交付能力，删除「只装外壳、后续批次接入」的过期表述。
+- 修正 `client.js` 头注释：预设是下拉而非分段控件，分段控件只用于模型来源。
+- 修正 `index.js` fact 3：依赖实际由自身 `node_modules` 解析，不是注释原先声称的 `peerDependencies`（本次改造后才成为事实）。
+- 删除一段 8 行悬空 JSDoc（描述已移除的 `PresetSegments`）。
 ## 1.0.14 — 2026-11-05
 
 设置页审计「未证实项」两条落地修复（#2 / #6 合并处理，另含 #1）。

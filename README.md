@@ -76,7 +76,7 @@ link 安装下改代码即时生效；`git commit` 留版本。
 | `index.js` | 宿主半包：Config schema（15 字段全 volatile）、三级模型路由、上下文装配、`generate`（`finish.kind` 分派 + 预算翻倍重试 + 强度回退）、`POST /dsh-draft-studio/refine`（loopback 栅栏 + 1 MiB 上限 + 超时） |
 | `client.js` | 浏览器半包：按钮四态、`insertText` 写回（draftRev 守卫 + 芯片坐标折算）、一键回退、模块级任务注册表、设置页、中英文案 |
 | `cordis.patch.yml` | 装载声明（一行 insert，entry id 全局唯一） |
-| `package.json` | `dsh.bundle.patch` + `dsh.client.platform: web` |
+| `package.json` | `dsh.bundle.patch` + `dsh.client.platform: web`；`@deepseek-ai/schemastery` 声明为 `peerDependencies`，由宿主运行时提供 |
 | `locale/*.json` | 市场卡片元数据 |
 
 改造入口：提示词文本看 `index.js` 的 `PROMPT_BASE` / `PRESETS`；交互看 `client.js` 的 `RefineControl`；模型路由看 `index.js` 的 `resolveRoute`；设置页控件看 `client.js` 的 `SettingsSection`。
