@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.18 — 2026-11-05
+
+### 文档
+
+- `RELEASE.md` §3.3 新增「409 / 占位版本 ≠ 发布失败」：首次发布时把 npm 的最终一致性延迟误判成失败，重发前改了版本号，造成一个废版本。判定方法写清——**只能查版本端点**（`/pkg/<version>` 返回 200 且 shasum/gitHead 匹配），不能看 publish 退出码，也不能看 packument 的 `dist-tags`（`0.0.0-stage` 是占位记录，不是分阶段发布）。
+- v1.0.15 的独立审计报告归档到 `docs/AUDIT-v1.0.15.md`。
 ## 1.0.17 — 2026-11-05
 
 发布链路与对外文案。
@@ -19,6 +25,9 @@
 ### 打包
 
 - `files` 补 `RELEASE.md`、`scripts/*.ps1`、`scripts/*.mjs`；`npm pack` 14 个文件。
+### 发布踩坑记录（补进 RELEASE.md §3.3）
+
+首次发布时把 npm 的最终一致性延迟误判成失败：第一次 `npm publish` 已成功，但 registry 未稳定，重试报 `409 Cannot publish over previously staged version`，于是把版本改成 `1.0.18` 重发——造成一个废版本号。教训与判定方法已写入 `RELEASE.md`：**判断发布成功只能查版本端点**（`/pkg/<version>` 返回 200 且 shasum/gitHead 匹配），不能看 publish 退出码，也不能看 packument 的 `dist-tags`（`0.0.0-stage` 是占位记录，不是分阶段发布）。
 ## 1.0.16 — 2026-11-05
 
 v1.0.15 审计（`AUDIT-V115.md`，8 项全 PASS、2 处必修）后的修复。

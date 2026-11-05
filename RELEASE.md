@@ -133,6 +133,29 @@ npm view dsh-draft-studio dist-tags --registry=https://registry.npmjs.org
 | `EPUBLISHCONFLICT` | 版本已存在 | 提号重发，**不要** `--force` |
 | 发布后 `npm view` 仍是旧版 | CDN 缓存 | 按上面的版本端点查；通常几十秒到几分钟 |
 
+#### 409 / 占位版本 ≠ 发布失败（踩过的坑）
+
+`npm publish` 会先返回成功、registry 却要几十秒才更新。**在这段窗口里做的判断，全是误判**：
+
+| 你看到的 | 其实是什么 | 该做什么 |
+|---|---|---|
+| 第二次 publish 报 `409 Cannot publish over previously staged version "<VER>"` | 第一次**已经成功**了，registry 只是还没稳定 | **什么都别做**，等 30–60 秒查版本端点 |
+| packument 里只有 `0.0.0-stage`，`dist-tags.latest` 也指向它 | npm 在 packument 首次创建时的占位记录，几秒后被真实版本替换 | 同上，等 |
+| `npm stage list` 是空的 | 你没开分阶段发布，这条线与本情况无关 | 别顺着它查下去 |
+
+**判定成功只能靠版本端点**——不能靠 publish 的退出码，也不能靠 packument 的 `dist-tags`：
+
+```powershell
+# 等 30–60 秒后
+curl.exe -s -w "\nHTTP %{http_code}" "https://registry.npmjs.org/dsh-draft-studio/<VER>"
+# 校验点：HTTP 200，且返回体里的 version / dist.shasum / gitHead 都是这一版
+```
+
+真的失败（`E403`、`EPUBLISHCONFLICT`、`EOTP`）会在**第一次** publish 就明确报错，不会先给你一个成功回包。所以：
+
+- 看到 409 → **不要**改版本号重发，那会造成版本跳号（本项目首发时 `1.0.18` 就是这么产生的废号）
+- 只有版本端点持续 `404` 且 `stage list` 里确有内容时，才走分阶段发布的批准路径
+
 ### 3.4 发布后确认「装得上、真的活」
 
 线上可见 ≠ 装得上。用 **registry 形态**装一次（不是从工作树装），再做活体取证：
