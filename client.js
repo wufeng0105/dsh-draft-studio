@@ -411,6 +411,7 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-foot .dsh-pr-grow{flex:1}',
 			'.dsh-pr-count{font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'.dsh-pr-count[data-dirty="true"]{color:var(--dsw-alias-label-primary,currentColor)}',
+			'.dsh-pr-ctx{margin:0;color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'@media (max-width:660px){.dsh-pr-panel{grid-template-columns:repeat(3,minmax(0,1fr))}}',
 			'@media (max-width:480px){.dsh-pr-panel,.dsh-pr-sub-grid{grid-template-columns:1fr}}',
 			'.dsh-pr-save{border:none;border-radius:8px;padding:6px 14px;background:var(--dsw-alias-brand,#247bbf);color:var(--dsw-alias-bg-layer-1,#fff);font:inherit;font-size:13px;line-height:20px;font-weight:500;cursor:pointer}',
@@ -885,6 +886,79 @@ window.__ModuleLoader__.load({
 			if (controller !== undefined && current.controller !== controller) return;
 			RUNNING.delete(sessionId);
 			notifyTasks();
+		}
+
+		// -------------------------------------------------------------------
+		// Last-run record (settings page: "did the context switch do anything?")
+		// -------------------------------------------------------------------
+
+		/**
+		 * What the Host said about the conversation context on the last successful
+		 * refinement.
+		 *
+		 * The two seats are separate components: the composer is where a run happens,
+		 * the settings page is where a user looks to check 「读取上下文」 actually took
+		 * effect. One small record plus a listener set bridges them — deliberately not
+		 * another store object, because there is exactly one value and it is replaced,
+		 * never merged.
+		 */
+		let lastRun = null;
+		const lastRunListeners = new Set();
+
+		/** Remember the Host's context verdict for the settings page. */
+		function recordLastRun(context) {
+			lastRun = { context: context === undefined ? null : context };
+			for (const listener of [...lastRunListeners]) listener();
+		}
+
+		/** Subscribe a mounted settings page to that record. */
+		function subscribeLastRun(listener) {
+			lastRunListeners.add(listener);
+			return () => {
+				lastRunListeners.delete(listener);
+			};
+		}
+
+		/** Re-render on every new record; returns the current one (null before any run). */
+		function useLastRun() {
+			const [, force] = useReducer((n) => n + 1, 0);
+			useEffect(() => subscribeLastRun(() => force()), []);
+			return lastRun;
+		}
+
+		/**
+		 * One short sentence for the settings page: what the last run did with the
+		 * conversation context.
+		 *
+		 * The Host distinguishes six outcomes because they need different fixes:
+		 * the switch is off, the session is unknown, the session layer is unreachable,
+		 * there is no history yet, or the history was filtered out by the message /
+		 * character budget. Collapsing them into "no context" — which is what the
+		 * plain-mode path did — leaves the user unable to tell a misconfiguration
+		 * from an empty conversation.
+		 *
+		 * @param context - the `context` field the Host echoed back, if any.
+		 * @param t - bound translator.
+		 * @returns a short line of text.
+		 */
+		function contextLine(context, t) {
+			if (context === null || typeof context !== 'object') return t('ctx.unknown');
+			switch (context.status) {
+				case 'ok':
+					return t('ctx.ok', { turns: String(context.turns ?? 0), chars: String(context.chars ?? 0) });
+				case 'disabled':
+					return t('ctx.disabled');
+				case 'noSession':
+					return t('ctx.noSession');
+				case 'unreachable':
+					return t('ctx.unreachable');
+				case 'empty':
+					return t('ctx.empty');
+				case 'filtered':
+					return t('ctx.filtered');
+				default:
+					return t('ctx.unknown');
+			}
 		}
 
 		/**
@@ -1581,6 +1655,7 @@ window.__ModuleLoader__.load({
 			// pressed. A page the Host refuses to write can never open the gate, so a
 			// stale `editing: true` cannot leave an editable field on a read-only page.
 			const editing = controller.editing === true && writable;
+			const last = useLastRun();
 			// The preset the six-cell row acts on. Everything in that row (dropdown,
 			// checkbox, edit gate, restore) targets THIS preset.
 			const activePreset = normalizePreset(view.preset);
@@ -1777,6 +1852,10 @@ window.__ModuleLoader__.load({
 					),
 
 				),
+				// 「读取上下文」到底生效没有：一行，只有发起过改写才出现。
+				last === null
+					? null
+					: h('p', { className: 'dsh-pr-sub dsh-pr-ctx' }, contextLine(last.context, t)),
 				h(
 					'div',
 					{ className: 'dsh-pr-foot' },
@@ -2116,6 +2195,10 @@ window.__ModuleLoader__.load({
 						dispatch({ type: 'failed', failure: outcome.failure });
 						return;
 					}
+					// Only a run that actually succeeded publishes a context verdict: a
+					// failed call never assembled anything, and showing its old value
+					// would misreport what the model just saw.
+					recordLastRun(payload?.context);
 					// A late reply for a cancelled run must not be applied: the user already
 					// moved on, and their draft may hold something else entirely.
 					deliver(outcome.text, draftRef.current, rev);
@@ -2331,6 +2414,13 @@ window.__ModuleLoader__.load({
 				'menu.effortDefault': '模型默认',
 				'model.pickLabel': '模型',
 				'foot.unsaved': '未保存 {count} 项',
+				'ctx.ok': '上次改写：已读取 {turns} 轮上下文（{chars} 字）',
+				'ctx.disabled': '上次改写：未读取上下文（设置里关着）',
+				'ctx.noSession': '上次改写：未读取上下文（拿不到当前会话）',
+				'ctx.unreachable': '上次改写：未读取上下文（会话读不到）',
+				'ctx.empty': '上次改写：未读取上下文（本会话还没有历史）',
+				'ctx.filtered': '上次改写：未读取上下文（历史被条数或字数预算筛空）',
+				'ctx.unknown': '上次改写：上下文状态未知',
 				'foot.clean': '未修改',
 				'model.effortLabel': '思考强度',
 				'action.save': '保存',
@@ -2391,6 +2481,13 @@ window.__ModuleLoader__.load({
 				'menu.effortDefault': 'Model default',
 				'model.pickLabel': 'Model',
 				'foot.unsaved': '{count} unsaved',
+				'ctx.ok': 'Last run: read {turns} turns of context ({chars} chars)',
+				'ctx.disabled': 'Last run: no context (switch is off)',
+				'ctx.noSession': 'Last run: no context (no session available)',
+				'ctx.unreachable': 'Last run: no context (session unreachable)',
+				'ctx.empty': 'Last run: no context (this session has no history yet)',
+				'ctx.filtered': 'Last run: no context (history was filtered out by the message/character budget)',
+				'ctx.unknown': 'Last run: context status unknown',
 				'foot.clean': 'No changes',
 				'model.effortLabel': 'Reasoning effort',
 				'action.save': 'Save',

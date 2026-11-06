@@ -1,6 +1,6 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
 
   "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow - rewritten in place, one click, never sent.",
   "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },

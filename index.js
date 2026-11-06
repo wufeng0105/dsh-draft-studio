@@ -607,8 +607,13 @@ function selectTurns(messages, config, draft) {
  * Collect the conversation that precedes the draft, as a JSON string.
  *
  * Fails open: no session, no history, a disabled switch, or any session-layer
- * throw all yield `undefined`, and the caller then runs in plain mode. Context is
+ * throw all yield no context, and the caller then runs in plain mode. Context is
  * an enhancement, so it must never be the reason a refinement fails.
+ *
+ * Returns `{ json, info }`: `json` is the wire payload (undefined in plain mode)
+ * and `info` says WHY it is empty — `disabled` / `noSession` / `unreachable` /
+ * `empty` / `filtered` / `ok`. The settings page shows `info` so a user who ticked
+ * 「读取上下文」 can see whether it actually reached the model.
  *
  * JSON is the wire format on purpose — text inside the history cannot forge the
  * surrounding structure of the prompt, which is what a delimiter-only framing
@@ -618,23 +623,29 @@ function selectTurns(messages, config, draft) {
  * @param sessionId - the session to read.
  * @param config - resolved configuration.
  * @param draft - the draft being refined.
- * @returns a JSON array string, or undefined in plain mode.
+ * @returns `{ json, info }`; `json` is a JSON array string or undefined.
  */
 function collectContext(scope, sessionId, config, draft) {
-	if (!config.contextEnabled) return undefined;
-	if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined;
+	if (!config.contextEnabled) return { json: undefined, info: { status: 'disabled' } };
+	if (typeof sessionId !== 'string' || sessionId.length === 0) {
+		return { json: undefined, info: { status: 'noSession' } };
+	}
 	try {
 		const session = scope.get('sessions')?.get(sessionId);
-		if (session === undefined) return undefined;
+		if (session === undefined) return { json: undefined, info: { status: 'unreachable' } };
 		// `deriveMessages()` is the authoritative view: it already applies message
 		// projections and drops whatever a compaction replaced.
 		const derived = session.deriveMessages();
-		if (!Array.isArray(derived) || derived.length === 0) return undefined;
+		if (!Array.isArray(derived) || derived.length === 0) {
+			return { json: undefined, info: { status: 'empty' } };
+		}
 		const turns = selectTurns(derived, config, draft);
-		if (turns.length === 0) return undefined;
-		return JSON.stringify(turns);
+		if (turns.length === 0) return { json: undefined, info: { status: 'filtered' } };
+		// Count what the model will actually see, after capping and truncation.
+		const chars = turns.reduce((sum, turn) => sum + countText(turn.text), 0);
+		return { json: JSON.stringify(turns), info: { status: 'ok', turns: turns.length, chars } };
 	} catch {
-		return undefined;
+		return { json: undefined, info: { status: 'unreachable' } };
 	}
 }
 
@@ -887,7 +898,8 @@ async function refine(scope, config, request, signal, infoCache) {
 	if (!config.enabled) {
 		throw new RefineFailure('DISABLED', '提示词优化已关闭。请在设置中开启后重试。');
 	}
-	const context = collectContext(scope, request?.sessionId, config, draft);
+	const gathered = collectContext(scope, request?.sessionId, config, draft);
+	const context = gathered.json;
 	// The preset is chosen HERE, per request: the button that was clicked names it,
 	// and a saved `preset` is only the fallback. `generate` keeps reading
 	// `config.systemPrompt`, so the override must travel in the object handed to it —
@@ -896,7 +908,7 @@ async function refine(scope, config, request, signal, infoCache) {
 	const promptText = typeof config?.presetPrompts?.[key] === 'string' ? config.presetPrompts[key] : '';
 	const effective = { ...config, systemPrompt: promptText.length > 0 ? promptText : presetDefault(key) };
 	const text = await generate(scope, effective, route, draft, context, signal, infoCache);
-	return { text, finish: 'stop', route, preset: key };
+	return { text, finish: 'stop', route, preset: key, context: gathered.info };
 }
 
 // ---------------------------------------------------------------------------
@@ -1022,6 +1034,8 @@ async function handleRefine(scope, config, request, response, signal, infoCache)
 			// Echo the preset actually used, so the caller can assert "the button I
 			// clicked is the preset that ran" instead of inferring it from the text.
 			preset: result.preset,
+			// Why the conversation context was or was not used (settings-page line).
+			context: result.context,
 			error: null,
 		});
 	} catch (error) {
