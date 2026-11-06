@@ -93,7 +93,55 @@ npm run check-version                                     # 3. 版本与 CHANGEL
 
 ---
 
-## 七、这份清单管不到什么（诚实边界）
+## 七、本插件对外接口（`POST /dsh-draft-studio/refine`）
+
+> 上面几节是「宿主给我们什么」；这一节反过来，是「**我们对外返回什么**」——客户端、自检脚本、以及任何直接调这个路由的人都按这张表读。
+
+**请求体**：只允许三个字段，多传的一律不读（`presetId` 非法时静默回落到配置里的 `preset`）。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `draft` | string | 必填，要改写的草稿 |
+| `sessionId` | string | 可选，读会话上下文用 |
+| `presetId` | string | 可选，`general`/`code`/`writing`/`translation`；**只传标识，绝不传提示词文本** |
+
+**成功响应**（HTTP 200）：**7 个字段**
+
+| 字段 | 值 |
+|---|---|
+| `ok` | `true` |
+| `text` | 改写结果 |
+| `finish` | 恒为 `'stop'` |
+| `route` | `{ provider, model }` |
+| `preset` | 实际使用的预设 key |
+| `context` | `{ status, turns?, chars? }`，见下表 |
+| `error` | `null` |
+
+**失败响应**（HTTP 200）：**5 个字段**，没有 `route` / `preset` / `context`
+
+| 字段 | 值 |
+|---|---|
+| `ok` | `false` |
+| `code` | 稳定错误码（`EMPTY_DRAFT` / `DISABLED` / `NO_MODEL` / `NO_ADAPTER` / `TIMEOUT` / `EMPTY` / `UNAVAILABLE` / …） |
+| `text` | `''` |
+| `finish` | **等于 `code`**（与成功时的 `'stop'` 不同，这是既有约定） |
+| `error` | 面向人的说明 |
+
+**例外状态码**：405（方法不是 POST）、403（Host 非 loopback / 跨站 / Content-Type 不对）、400（body 不是 JSON）、503（插件卸载）。
+
+**`context.status` 六态**
+
+| 值 | 含义 | `turns`/`chars` |
+|---|---|---|
+| `ok` | 读到并送进模型了 | 有 |
+| `disabled` | 设置里「读取上下文」关着 | 无 |
+| `noSession` | 请求没带 `sessionId` | 无 |
+| `unreachable` | 会话取不到（或读投影抛错） | 无 |
+| `empty` | 会话还没有可读历史 | 无 |
+| `filtered` | 历史被条数/字数预算筛空 | 无 |
+
+**客户端约定**：设置页那行「上次改写」的可见性 **≡ 宿主回报过 `context`**；缺这个字段就什么都不显示（不是显示「未知」）。
+## 八、这份清单管不到什么（诚实边界）
 
 **「契约都在」不等于「插件能用」。** 我们自己的三个事故都是 API 齐全、功能已死：
 

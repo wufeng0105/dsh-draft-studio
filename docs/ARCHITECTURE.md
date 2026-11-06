@@ -77,7 +77,24 @@
 | 深色主题 | 全部用宿主别名 token，理论上跟随，**未实机切换验证** |
 | 未验证项 | 默认文本的逐字节比对、`presetId` 回落与请求体无提示词字段的 curl 行为验收，均未在真机跑过 |
 
-## 6. 验证方式
+## 6. 契约不变量
+
+> 下面这些是**改代码时不许动**的东西。任何改动碰到其中一条，先停下来重新规划，而不是顺手改掉。
+> 每条都绑着一个可执行判据（`npm run check-contract` 或 `npm run check-version`），没有判据的会注明只能人工核。
+
+| # | 不变量 | 判据 |
+|---|---|---|
+| I1 | 请求体只有 `draft` / `sessionId` / `presetId`；**绝不接受提示词文本** | `check-contract`（伪造 `systemPrompt` 字段，断言送进模型的 system 不变） |
+| I2 | 成功响应 7 个字段、失败响应 5 个字段；**失败时 `finish === code`** | `check-contract` |
+| I3 | `context.status` 只有六态；`ok` 仅在 `turns > 0` 时出现 | `check-contract` |
+| I4 | 失败仍是 HTTP 200 + `ok:false`（405/403/400/503 四个例外除外） | `check-contract` |
+| I5 | 按钮四态 `idle / busy / undo / error` 不变 | 人工（`taskReducer` 未导出） |
+| I6 | 同一会话同时只跑一个（`RUNNING` 按 `sessionId` 单锁） | 人工 |
+| I7 | 设置页「上次改写」的可见性 ≡ 宿主回报过 `context`；**跳过记录 ≠ 清空记录** | `check-contract`（源码级守卫断言）+ 人工 |
+| I8 | `package.json` / `CHANGELOG` / git tag 三处版本一致 | `npm run check-version` |
+
+**为什么写在这里而不是 `HOST-CONTRACT.md`**：那份文件是「宿主升级后哪里会坏」的对外清单，末尾自带「管不到什么」的边界声明；内部契约放进去会让两种语义打架。
+## 7. 验证方式
 
 没有 lint、类型检查、构建脚本（纯 JS、无构建）。验证分三层，前两层机械、第三层人眼：
 
