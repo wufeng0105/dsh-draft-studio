@@ -518,6 +518,33 @@ window.__ModuleLoader__.load({
 		 * @param payload - parsed response body.
 		 * @returns `{ text }` or `{ failure }`.
 		 */
+		/** Longest Host-provided detail that still reads as one line in a tooltip. */
+		const HOST_DETAIL_MAX = 120;
+
+		/**
+		 * The Host's own explanation for a failure, sanitised for one tooltip line.
+		 *
+		 * Two Host messages carry information the client cannot reconstruct: the
+		 * provider name in `NO_ADAPTER` ("模型提供商「x」未启用"), and the free-form
+		 * message on an unknown code. Both are also the only places where arbitrary
+		 * Host text reaches the UI, so the cleaning lives here and nowhere else:
+		 * collapse whitespace (a multi-line error must not become a multi-paragraph
+		 * tooltip), trim, and cut to {@link HOST_DETAIL_MAX} code units with an
+		 * ellipsis so a pathological message cannot bloat the title.
+		 *
+		 * Returns `''` when the Host sent no usable string — callers fall back to
+		 * their own localised copy rather than rendering an empty label.
+		 *
+		 * @param payload - the parsed response body.
+		 * @returns a single-line detail, or an empty string.
+		 */
+		function hostDetail(payload) {
+			const raw = payload?.error;
+			if (typeof raw !== 'string') return '';
+			const flat = raw.replace(/\s+/gu, ' ').trim();
+			return flat.length > HOST_DETAIL_MAX ? `${flat.slice(0, HOST_DETAIL_MAX).trimEnd()}…` : flat;
+		}
+
 		function interpretResponse(payload) {
 			if (payload !== null && typeof payload === 'object' && payload.ok === true) {
 				const text = typeof payload.text === 'string' ? payload.text.trim() : '';
@@ -528,8 +555,16 @@ window.__ModuleLoader__.load({
 			switch (code) {
 				case 'EMPTY_DRAFT': return { failure: { key: 'state.emptyDraft' } };
 				case 'DISABLED': return { failure: { key: 'state.disabled' } };
+				case 'NO_ADAPTER': {
+					// The one failure whose Host message carries something the client
+					// cannot know: WHICH provider failed to enable. Show the Host's own
+					// sentence when it exists, else fall back to the generic model copy.
+					const detail = hostDetail(payload);
+					return detail.length > 0
+						? { failure: { key: 'state.noAdapter', params: { detail } } }
+						: { failure: { key: 'state.noModel' } };
+				}
 				case 'NO_MODEL':
-				case 'NO_ADAPTER':
 				case 'MODEL_NOT_FOUND':
 					return { failure: { key: 'state.noModel' } };
 				case 'MISSING_CREDENTIAL':
@@ -550,7 +585,7 @@ window.__ModuleLoader__.load({
 				default: return {
 					failure: {
 						key: 'state.failed',
-						params: { reason: typeof payload?.error === 'string' && payload.error.length > 0 ? payload.error : code },
+						params: { reason: hostDetail(payload) || code },
 					},
 				};
 			}
@@ -2198,7 +2233,14 @@ window.__ModuleLoader__.load({
 					// Only a run that actually succeeded publishes a context verdict: a
 					// failed call never assembled anything, and showing its old value
 					// would misreport what the model just saw.
-					recordLastRun(payload?.context);
+					//
+					// And only when the Host actually reported one. A Host older than the
+					// `context` contract answers without the field; recording `undefined`
+					// would render a line that says "status unknown" — a new, information-
+					// free row. Skip instead: the line's visibility IS the signal that the
+					// Host reported (ARCHITECTURE「契约不变量」I7). Skipping is not clearing:
+					// an older record stays until a newer successful run replaces it.
+					if (payload?.context !== undefined) recordLastRun(payload.context);
 					// A late reply for a cancelled run must not be applied: the user already
 					// moved on, and their draft may hold something else entirely.
 					deliver(outcome.text, draftRef.current, rev);
@@ -2381,6 +2423,7 @@ window.__ModuleLoader__.load({
 				'state.emptyDraft': '草稿是空的，没有可优化的内容。',
 				'state.disabled': '提示词优化已关闭，请在设置中开启。',
 				'state.noModel': '当前没有可用的模型选择，请先选择一个模型。',
+				'state.noAdapter': '{detail}',
 				'state.noCredential': '当前模型缺少可用凭据，请补齐后重试。',
 				'state.rateLimited': '模型接口限流，请稍后重试。',
 				'state.tooLong': '草稿超出当前模型的上下文窗口，请缩短后重试。',
@@ -2448,6 +2491,7 @@ window.__ModuleLoader__.load({
 				'state.emptyDraft': 'The draft is empty; there is nothing to refine.',
 				'state.disabled': 'Prompt refinement is switched off; enable it in Settings.',
 				'state.noModel': 'No model is available; choose one in the conversation first.',
+				'state.noAdapter': 'The provider for the pinned model is not enabled; choose another provider.',
 				'state.noCredential': 'The current model has no usable credential; add one and retry.',
 				'state.rateLimited': 'The model endpoint is rate limited; try again shortly.',
 				'state.tooLong': 'The draft exceeds the current model context window; shorten it and retry.',

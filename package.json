@@ -10,7 +10,8 @@
   "type": "module",
   "scripts": {
     "self-check": "pwsh -NoProfile -File scripts/self-check.ps1",
-    "check-version": "node scripts/check-version.mjs"
+    "check-version": "node scripts/check-version.mjs",
+    "check-contract": "node scripts/contract-check.mjs"
   },
   "icon": "icon.svg",
   "exports": {
@@ -30,7 +31,8 @@
     "LICENSE",
     "docs/*.md",
     "scripts/*.ps1",
-    "scripts/*.mjs"
+    "scripts/*.mjs",
+    "!scripts/contract-check.mjs"
   ],
   "dsh": {
     "bundle": {
