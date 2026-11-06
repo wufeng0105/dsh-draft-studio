@@ -156,9 +156,9 @@ export const Config = z === undefined ? undefined : z.object({
 	 */
 	reasoningEffort: z.string().default('').volatile(),
 	/** Visible-answer token budget before reasoning headroom. */
-	maxOutputTokens: z.number().step(1).min(64).default(2000).volatile(),
+	maxOutputTokens: z.number().step(1).min(64).default(5000).volatile(),
 	/** Per-request wall-clock limit. */
-	timeoutMs: z.number().step(1).min(1000).default(180000).volatile(),
+	timeoutMs: z.number().step(1).min(1000).default(480000).volatile(),
 	/** How many prior turns may enter the context window. */
 	contextMaxMessages: z.number().step(1).min(0).default(8).volatile(),
 	/** Character budget of the assembled context block. */
@@ -186,8 +186,8 @@ const CONTEXT_TRUNCATION_MARK = '…（已截断）';
 
 /** Fallback used only when a numeric config value is unusable. */
 const FALLBACK = Object.freeze({
-	maxOutputTokens: 2000,
-	timeoutMs: 180000,
+	maxOutputTokens: 5000,
+	timeoutMs: 480000,
 	contextMaxMessages: 8,
 	contextMaxChars: 4000,
 });
