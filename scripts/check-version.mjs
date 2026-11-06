@@ -2,14 +2,14 @@
 /**
  * 版本一致性门禁：让「tag == package.json == CHANGELOG」成为可执行断言。
  *
- * RELEASE.md 的每个校验点都调用它，所以它必须自己就能跑、能分辨正常中间态。
+ * docs/RELEASING.md 的每个校验点都调用它，所以它必须自己就能跑、能分辨正常中间态。
  * 版本不一致时以非零退出，并把「怎么修」写在报错里，而不是只报「不一致」。
  *
  * 检查项：
  *   V1  package.json 可解析且 version 是合法 semver
  *   V2  CHANGELOG.md 顶部有对应版本的节
  *   V3  该节标题的日期是今天或更早（防手滑写未来日期）
- *   V4  engines.dsh 存在且含 `||`（单一范围会静默排除其他 rc 元组）
+ *   V4  engines.dsh：本仓故意不声明（声明即在新 rc 元组上被宿主跳过）；若日后重加，必须含 `||`
  *   V5  最新 git tag（若有）等于 `v<version>`
  *
  * 退出码：0 = 全部通过或仅有「正常中间态」提醒；1 = 有真实不一致。
@@ -104,7 +104,14 @@ if (changelog) {
 
 const dshRange = pkg.engines?.dsh
 if (typeof dshRange !== 'string' || dshRange.length === 0) {
-	fail('缺少 engines.dsh', '声明支持范围，DSH 大版本升级时才能提前拦下不兼容安装')
+	// 故意不声明（2026-11-06 决定）。宿主 app-boot 的规则是：
+	//   engines.dsh 一旦声明就「单独决定」兼容性，peerDependencies 被忽略；
+	//   不满足时整个 bundle 被跳过、不装载（插件从界面整体消失）。
+	// 而声明它只能在「每个 rc 元组」上各写一支——semver 的预发布规则使然。
+	// DSH 每出一个新 rc 元组（如 0.2.10-rc.1）或 0.3.0，旧声明立刻全部不满足。
+	// 不声明时回落到 peerDependencies 检查，而本包唯一的 peer 是
+	// `@deepseek-ai/schemastery`（不匹配 dsh / dsh-* 前缀，被跳过）→ 永远判定兼容。
+	remind('未声明 engines.dsh（故意）：声明它会在新 rc 元组上被宿主跳过，反而更危险')
 } else if (!dshRange.includes('||')) {
 	// 这是本仓踩过的真坑：单一范围只放行「与该版本 major.minor.patch 完全一致
 	// 且自身带预发布标签」的比较符，于是 0.2.2-rc.1 这类版本被静默排除。

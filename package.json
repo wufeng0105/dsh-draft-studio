@@ -1,6 +1,6 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.0.18",
+  "version": "1.1.0",
 
   "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow - rewritten in place, one click, never sent.",
   "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },
@@ -27,7 +27,6 @@
     "icon.svg",
     "README.md",
     "CHANGELOG.md",
-    "RELEASE.md",
     "LICENSE",
     "docs/*.md",
     "scripts/*.ps1",
@@ -47,7 +46,6 @@
     "@deepseek-ai/schemastery": ">=3.0.0 || >=3.18.0-0 <4.0.0"
   },
   "engines": {
-    "dsh": ">=0.2.1-rc.5 <0.3.0-0 || >=0.2.2-rc.0 <0.3.0-0 || >=0.2.3-rc.0 <0.3.0-0 || >=0.2.4-rc.0 <0.3.0-0 || >=0.2.5-rc.0 <0.3.0-0 || >=0.2.6-rc.0 <0.3.0-0 || >=0.2.7-rc.0 <0.3.0-0 || >=0.2.8-rc.0 <0.3.0-0 || >=0.2.9-rc.0 <0.3.0-0",
     "node": ">=20.3.0"
   },
   "license": "MIT"

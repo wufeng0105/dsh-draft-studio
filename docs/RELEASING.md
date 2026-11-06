@@ -23,7 +23,7 @@ npm 上的版本**不可变**，任何内容变化都要提号，不能重打同
 
 | 位置 | 改什么 |
 |---|---|
-| `package.json` → `engines.dsh` | 新增一条 `>=0.2.N-rc.0 <0.3.0-0` 分支（**不要**合并成一个范围，见 §6 的坑） |
+| `package.json` → `engines.dsh` | **不要动**：本包故意不声明它，理由见 §5.2 |
 | `CHANGELOG.md` | 顶部加一节，写清改了什么，不用营销词 |
 | `scripts/self-check.ps1` | 若有新的运行时契约，把对应检查项加进去 |
 
@@ -48,7 +48,7 @@ node scripts/check-version.mjs                    # 校验点：V5 OK（最新 t
 | 层 | 查什么 | 红了说明 |
 |---|---|---|
 | 源码语法 | `index.js` / `client.js` 能否 `node --check` | 语法错会让插件静默不加载，按钮直接消失 |
-| 清单契约 | `dsh.bundle.patch`、`peerDependencies`、`engines.dsh` 的 `\|\|`、`files` 覆盖、locale 元数据 | 市场收录会拒，或用户装上就坏 |
+| 清单契约 | `dsh.bundle.patch`、`peerDependencies`、`files` 覆盖、locale 元数据（`engines.dsh` 故意不声明，见 §5.2） | 市场收录会拒，或用户装上就坏 |
 | 宿主运行时 | DSH 进程、Web 端口、已装进 profile | 本机环境问题，不是发布问题，但挡住验证 |
 | 端到端 | 真机 POST `/refine` | 前三层全绿也可能模型层坏了 |
 
@@ -69,7 +69,7 @@ $notes = @'
 
 <两三句：这版改了什么、为什么>
 
-已适配（verified）：**DSH <当前版本>**（`engines.dsh` 覆盖 0.2.1–0.2.9 的预发布）。
+已适配（verified）：**DSH <当前版本>**。
 '@
 Set-Content -LiteralPath "$env:TEMP\release-notes.md" -Value $notes -Encoding utf8
 
@@ -209,17 +209,26 @@ shasum 不同时**别急着重发**：解包两侧按相对路径逐文件比 SH
 
 `@deepseek-ai/schemastery` 由**宿主提供**，本仓不装 `node_modules`、不带 `pnpm-lock.yaml`。如果你为了本地调试临时 `pnpm install`，发布前务必删掉产物并确认 `dependencies` 里没有 `@deepseek-ai/*`——`self-check` 第 2 层会拦。
 
-### 5.2 `engines.dsh` 不能合并成单一范围
+### 5.2 本包**故意不声明** `engines.dsh`
 
-这是踩过的真坑。node-semver 只在「范围里存在一个与该版本 `major.minor.patch` 完全一致、且自身带预发布标签的比较符」时才放行预发布版本。于是：
+曾经写过 9 条 `||` 分支去覆盖 0.2.1–0.2.9 的 rc 元组。现在**删掉了**，理由是从宿主源码里查实的：
+
+**其一，声明了就是"一票决定权"。** `@deepseek-ai/dsh-app-boot` 的 `unmetRequirements()` 里：只要 `engines.dsh` 存在，就只按它判，`peerDependencies` 一概不看；不满足时 `loadProfileDirectory` 直接 `throw`，该 bundle 进 `skippedBundles`——**插件整体不装载，从设置页和输入框里一起消失**。不是弹警告，是没了。
+
+**其二，声明它追不上新 rc。** node-semver 只在"范围里存在一个与目标版本 `major.minor.patch` 完全相同、且自带预发布标签的比较符"时才放行预发布版本。所以：
 
 ```
-">=0.2.1-rc.5 <0.3.0"        → 0.2.2-rc.1 被静默排除
-">=0.2.1-0 <0.3.0-0"         → 0.2.2-rc.1 同样被排除
-9 条显式分支（当前写法）      → 0.2.1–0.2.9 的 rc 全部放行
+">=0.2.1-rc.5 <0.3.0"     → 0.2.2-rc.1 被排除
+">=0.2.1-0 <0.3.0-0"      → 同上
+">=0.2.1-rc.5 <1.0.0-0"   → 0.2.10-rc.1 仍被排除（元组变了）
+9 条显式分支               → 只覆盖到 0.2.9，0.2.10+ / 0.3.0 全部落空
 ```
 
-代价是字符串很长，但它是唯一可靠的写法。DSH 每发一个新的 `0.2.N`，就补一支。
+DSH 每发一个新 rc 元组就要补一支，**漏一次插件就消失**。
+
+**其三，不声明反而永远兼容。** 没有 `engines.dsh` 时，宿主回落到 `peerDependencies` 检查，但只认 `@deepseek-ai/dsh` 与 `@deepseek-ai/dsh-*` 前缀；本包唯一的 peer 是 `@deepseek-ai/schemastery`，**不匹配前缀 → 被跳过 → 无 unmet → 判定兼容**。
+
+**兜底**：万一将来因为别的原因被跳过，用 `dsh plugin allow-version` 或插件管理器的版本豁免放行（`plugin_manager` 的 `set_version_exemption`）。豁免是"包名@版本 + 精确宿主版本"三元组，换宿主版本要重新授。
 
 ### 5.3 `/refine` 的两种拒绝是设计行为
 
@@ -246,7 +255,7 @@ shasum 不同时**别急着重发**：解包两侧按相对路径逐文件比 SH
 
 | 脚本 | 断言什么 |
 |---|---|
-| `scripts/check-version.mjs` | tag ↔ `package.json` version ↔ `CHANGELOG` 节 ↔ `engines.dsh` 的 `\|\|` |
+| `scripts/check-version.mjs` | tag ↔ `package.json` version ↔ `CHANGELOG` 节（`engines.dsh` 缺省视为正常态，见 §5.2） |
 | `scripts/self-check.ps1` | 源码语法、清单契约、宿主运行时、端到端 |
 
 ## 8. 市场条目（发布后的另一条链路）

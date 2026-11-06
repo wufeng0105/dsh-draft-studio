@@ -119,7 +119,11 @@ if ($pkg.engines.dsh) {
         Fail "engines.dsh 无 || 分支，会静默排除其他 rc 版本：$range" '改成 ">=X-rc.N <Y-0 || >=X+1-rc.0 <Y" 形式'
     }
 } else {
-    Warn '未声明 engines.dsh' 'DSH 大版本升级时无法提前拦下不兼容安装'
+    # 故意不声明（2026-11-06 决定）：宿主 app-boot 里 engines.dsh 一旦声明就单独决定
+    # 兼容性，不满足时整个 bundle 被跳过、插件从界面消失；而 semver 的预发布规则使声明
+    # 只能逐 rc 元组各写一支，新 rc 一出即全部失效。不声明则回落到 peer 检查，本包唯一的
+    # peer 是 @deepseek-ai/schemastery（不匹配 dsh / dsh-* 前缀）→ 永远判定兼容。
+    Pass '未声明 engines.dsh（故意：声明它会在新 rc 元组上被宿主跳过）'
 }
 
 # 2.4 files 必须包含运行时必需的每一项

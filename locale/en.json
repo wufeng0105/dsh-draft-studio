@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Draft Studio",
-    "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow — rewritten in place, one click, never sent. Four editable presets, optional conversation context, follow or pin the model."
+    "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow — rewritten in place, one click, never sent. Four editable presets, one button each; choose which refine buttons to show, optional conversation context, follow or pin the model."
   }
 }

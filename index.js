@@ -79,19 +79,19 @@ const PROMPT_BASE = [
  */
 const PRESETS = Object.freeze({
 	general: {
-		label: '通用',
+		label: 'OptionA',
 		supplement: 'This is a general-purpose request. Optimise for a complete, unambiguous brief any capable assistant could execute.',
 	},
 	code: {
-		label: '编程',
+		label: 'OptionB',
 		supplement: 'This is a software task. Make the target, the expected behaviour, the constraints (language, versions, dependencies, interfaces) and the acceptance criteria explicit. Name the stack only if the draft names it, otherwise leave it as a placeholder or 2-3 candidates.',
 	},
 	writing: {
-		label: '写作',
+		label: 'OptionC',
 		supplement: 'This is a writing task. Make the audience, tone, length, structure and must-cover points explicit. Keep the requested language and do not rewrite the user\'s own voice into a house style.',
 	},
 	translation: {
-		label: '翻译',
+		label: 'OptionD',
 		supplement: 'This is a translation task. Make the source and target language, the domain, the register and any terminology constraints explicit. Leave untranslatable or ambiguous keys as placeholders rather than inventing a translation rule.',
 	},
 });
@@ -131,6 +131,16 @@ export const Config = z === undefined ? undefined : z.object({
 	promptWriting: z.string().default(presetDefault('writing')).volatile(),
 	/** Complete system prompt for the translation preset. */
 	promptTranslation: z.string().default(presetDefault('translation')).volatile(),
+	/** Which of the four preset buttons the composer shows (unordered set). */
+	presetButtons: z.array(z.string()).default(['general', 'code', 'writing', 'translation']).volatile(),
+	/** Display name of the general preset; empty means the built-in name. */
+	nameGeneral: z.string().default('').volatile(),
+	/** Display name of the code preset; empty means the built-in name. */
+	nameCode: z.string().default('').volatile(),
+	/** Display name of the writing preset; empty means the built-in name. */
+	nameWriting: z.string().default('').volatile(),
+	/** Display name of the translation preset; empty means the built-in name. */
+	nameTranslation: z.string().default('').volatile(),
 	/** Whether prior conversation is read to ground the rewrite. */
 	contextEnabled: z.boolean().default(true).volatile(),
 	/** `follow` uses the session's model; `fixed` pins provider/model below. */
@@ -235,6 +245,29 @@ function optionalString(value, fallback) {
 	return typeof plain === 'string' ? plain.trim() : fallback;
 }
 
+/** Longest preset display name the composer can render. */
+const MAX_PRESET_NAME_CHARS = 12;
+
+/**
+ * One preset display name, normalised per SPEC §6.3.
+ *
+ * Non-string and empty both fall back to the built-in name; the result is
+ * trimmed and cut to {@link MAX_PRESET_NAME_CHARS} code points (not UTF-16
+ * units, so an emoji or a CJK character is never split in half).
+ *
+ * @param value - the raw configured name (volatile reference or plain).
+ * @param fallback - the built-in name for this preset.
+ * @returns the name to display.
+ */
+function presetName(value, fallback) {
+	const plain = unwrap(value);
+	if (typeof plain !== 'string') return fallback;
+	const trimmed = plain.trim();
+	if (trimmed.length === 0) return fallback;
+	const chars = Array.from(trimmed);
+	return chars.length > MAX_PRESET_NAME_CHARS ? chars.slice(0, MAX_PRESET_NAME_CHARS).join('') : trimmed;
+}
+
 /**
  * Read the live configuration.
  *
@@ -264,7 +297,18 @@ function readConfig(config) {
 		enabled: optionalBoolean(source.enabled, true),
 		preset: known,
 		// An empty textarea means "use the built-in default", not "send no system prompt".
+		// `systemPrompt` stays for the active preset only, and is a default: every
+		// request re-derives it from `presetPrompts` + the requested `presetId`.
 		systemPrompt: prompt.length > 0 ? prompt : presetDefault(known),
+		// All four texts, so a request may pick any preset without a second read.
+		presetPrompts: promptByPreset,
+		// Display names, already normalised: never empty, never over the cap.
+		names: {
+			general: presetName(source.nameGeneral, 'OptionA'),
+			code: presetName(source.nameCode, 'OptionB'),
+			writing: presetName(source.nameWriting, 'OptionC'),
+			translation: presetName(source.nameTranslation, 'OptionD'),
+		},
 		contextEnabled: optionalBoolean(source.contextEnabled, true),
 		modelMode: mode === 'fixed' ? 'fixed' : 'follow',
 		provider: optionalString(source.provider, ''),
@@ -275,6 +319,33 @@ function readConfig(config) {
 		contextMaxMessages: nonNegativeInteger(source.contextMaxMessages, FALLBACK.contextMaxMessages, 200),
 		contextMaxChars: nonNegativeInteger(source.contextMaxChars, FALLBACK.contextMaxChars, 100000),
 	};
+}
+
+// ---------------------------------------------------------------------------
+// Preset resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Pick the preset key for one request (SPEC §7.2).
+ *
+ * Order, exactly:
+ * 1. `presetId` is a string naming one of {@link PRESETS} — use it.
+ * 2. Otherwise fall back to `config.preset` (`readConfig` already normalised it).
+ *
+ * `presetButtons` deliberately does NOT participate: it only decides which
+ * buttons the composer draws, never which text a request runs with. A request
+ * naming a hidden preset still works, which keeps a saved setting from silently
+ * rewriting an in-flight click.
+ *
+ * @param config - the resolved config from `readConfig`.
+ * @param presetId - the raw `presetId` from the request body, if any.
+ * @returns a key of {@link PRESETS}; never empty, never unknown.
+ */
+function resolvePresetKey(config, presetId) {
+	if (typeof presetId === 'string' && Object.hasOwn(PRESETS, presetId)) return presetId;
+	const fallback = config?.preset;
+	if (typeof fallback === 'string' && Object.hasOwn(PRESETS, fallback)) return fallback;
+	return 'general';
 }
 
 // ---------------------------------------------------------------------------
@@ -799,10 +870,10 @@ async function generate(scope, config, routeIn, draft, context, signal, infoCach
  *
  * @param scope - plugin context exposing `llm`.
  * @param config - resolved configuration.
- * @param request - `{ draft, sessionId? }`.
+ * @param request - `{ draft, sessionId?, presetId? }`.
  * @param signal - cancellation for this request.
  * @param infoCache - per-route metadata cache.
- * @returns `{ text, finish }`; `finish` is the terminal kind that produced `text`.
+ * @returns `{ text, finish, route, preset }`; `finish` is the terminal kind that produced `text`.
  */
 async function refine(scope, config, request, signal, infoCache) {
 	const draft = typeof request?.draft === 'string' ? request.draft : '';
@@ -817,8 +888,15 @@ async function refine(scope, config, request, signal, infoCache) {
 		throw new RefineFailure('DISABLED', '提示词优化已关闭。请在设置中开启后重试。');
 	}
 	const context = collectContext(scope, request?.sessionId, config, draft);
-	const text = await generate(scope, config, route, draft, context, signal, infoCache);
-	return { text, finish: 'stop', route };
+	// The preset is chosen HERE, per request: the button that was clicked names it,
+	// and a saved `preset` is only the fallback. `generate` keeps reading
+	// `config.systemPrompt`, so the override must travel in the object handed to it —
+	// otherwise clicking B would still send A's text.
+	const key = resolvePresetKey(config, request?.presetId);
+	const promptText = typeof config?.presetPrompts?.[key] === 'string' ? config.presetPrompts[key] : '';
+	const effective = { ...config, systemPrompt: promptText.length > 0 ? promptText : presetDefault(key) };
+	const text = await generate(scope, effective, route, draft, context, signal, infoCache);
+	return { text, finish: 'stop', route, preset: key };
 }
 
 // ---------------------------------------------------------------------------
@@ -922,6 +1000,11 @@ async function handleRefine(scope, config, request, response, signal, infoCache)
 	// No per-call route override: the model comes from the saved settings and the
 	// session, exactly as the button and the settings page describe it.
 	const effective = live;
+	// The clicked preset arrives as `presetId` and carries a KEY, never prompt text:
+	// the request body may name a preset but must never supply one (D12). Only a
+	// string is accepted; anything else falls through to the saved `preset`.
+	const presetId = typeof body?.presetId === 'string' ? body.presetId : undefined;
+	const presetRequest = { draft: body?.draft, sessionId: body?.sessionId, presetId };
 	// The configured deadline is enforced HERE, not merely declared: the model call has
 	// no timeout of its own, and a provider that never answers would otherwise hold the
 	// request (and the caller's spinner) forever.
@@ -930,12 +1013,15 @@ async function handleRefine(scope, config, request, response, signal, infoCache)
 	timeoutSignal.addEventListener('abort', () => { timedOut = true; }, { once: true });
 	const deadline = AbortSignal.any([signal, timeoutSignal]);
 	try {
-		const result = await refine(scope, effective, body, deadline, infoCache);
+		const result = await refine(scope, effective, presetRequest, deadline, infoCache);
 		sendJson(response, 200, {
 			ok: true,
 			text: result.text,
 			finish: result.finish,
 			route: { provider: result.route.provider, model: result.route.model },
+			// Echo the preset actually used, so the caller can assert "the button I
+			// clicked is the preset that ran" instead of inferring it from the text.
+			preset: result.preset,
 			error: null,
 		});
 	} catch (error) {

@@ -88,6 +88,24 @@ window.__ModuleLoader__.load({
 		/** The Config fields holding one preset's full prompt text. */
 		const PROMPT_FIELDS = Object.freeze(['promptGeneral', 'promptCode', 'promptWriting', 'promptTranslation']);
 
+		/** The Config fields holding one preset's display name (§6.1). */
+		const NAME_FIELDS = Object.freeze(['nameGeneral', 'nameCode', 'nameWriting', 'nameTranslation']);
+
+		/**
+		 * Built-in names, one per preset (§6.3).
+		 *
+		 * The single source of truth for "what this preset is called when the user
+		 * has not named it". Kept in code rather than in the dictionary so the
+		 * composer — which renders before any settings page is mounted — can read a
+		 * name without a translator, and so a cleared name has exactly one fallback.
+		 */
+		const DEFAULT_NAMES = Object.freeze({
+			general: 'OptionA',
+			code: 'OptionB',
+			writing: 'OptionC',
+			translation: 'OptionD',
+		});
+
 		/**
 		 * Host events that make the model catalogue stale.
 		 *
@@ -288,8 +306,30 @@ window.__ModuleLoader__.load({
 		 * chrome.
 		 */
 		const CSS = [
-			'.dsh-pr-wrap{display:inline-flex;align-items:center}',
-			'.dsh-pr-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:none;border-radius:8px;background:transparent;color:var(--dsw-alias-text-tertiary,currentColor);cursor:pointer;transition:background-color 120ms ease,color 120ms ease}',
+			// BLOCK-level flex with an explicit height, NOT inline-flex.
+			//
+			// 根因（2026-11-06 对着宿主 app.asar 查实）：宿主把本站位与模型座位并排渲染在
+			// `.standardControls`（display:flex; align-items:center）里，模型那个是 28px 高。
+			// 我们的根元素若是 inline-flex，就参与行盒的基线对齐；而按钮里只有 svg、没有文字，
+			// 盒子的基线落在底缘，浏览器在它下方留出下伸部空间 → 整组被顶高、与模型控件错位。
+			// 同座位的兄弟插件用的是「块级 flex + height:28px」，所以它天生是齐的。
+			// 这里照抄该做法：块级 flex 不参与基线，28px 与模型控件等高，再由 align-items 居中。
+			//
+			// 光学补偿（2026-11-06 二次查实，含像素测量）：盒子等高同心之后，图标仍比文字
+			// 「高 1.7~2px」。这不是布局问题——两边都是 28px、都 align-items:center，上下留白
+			// 对称。原因是文字的**视觉中心不在行盒中心**：
+			//   模型 trigger 是 28px 盒 + 20px 行盒 + 13px 字；基线 ≈ y19.4，
+			//   `tierflow_pro` 的升部(t/f/l)到 9.9、降部(p)到 22.1 → 墨迹中心 16.0；
+			//   而图标墨迹中心 = (28−21)/2 + (21−12)/2 + 0.27 + 11.46/2 = 14.0。
+			// 差 2.0px（截图实测 3.0px ÷ 1.75 缩放 ≈ 1.72px，两条路径互证）。
+			// 图标是上下对称的方块、文字带降部，只靠布局对不齐，必须做光学下移。
+			'.dsh-pr-wrap{display:flex;align-items:center;height:28px;position:relative;top:1.3px}',
+			// The button GROUP (§5.1): N buttons, 2px apart, no gap where an unchecked
+			// preset used to be — the group is laid out by its children, so cancelling
+			// B and C closes up instead of reserving two empty cells.
+			'.dsh-pr-group{gap:2px}',
+			'.dsh-pr-btn{display:inline-flex;align-items:center;justify-content:center;width:21px;height:21px;padding:0;border:none;border-radius:6px;background:transparent;color:var(--dsw-alias-text-tertiary,currentColor);cursor:pointer;transition:background-color 120ms ease,color 120ms ease}',
+			'.dsh-pr-btn svg{width:12px;height:12px;display:block}',
 			'.dsh-pr-btn:hover:not(:disabled){background:var(--dsw-alias-bg-secondary,rgba(127,127,127,.12));color:var(--dsw-alias-text-primary,currentColor)}',
 			'.dsh-pr-btn:focus-visible{outline:2px solid var(--dsw-alias-brand,#247bbf);outline-offset:1px}',
 			'.dsh-pr-btn:disabled{cursor:default;opacity:.55}',
@@ -318,31 +358,61 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-seg-item:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
 			'.dsh-pr-seg-item:disabled{cursor:default;opacity:.5}',
 			'.dsh-pr-seg-item[aria-checked="true"]{background:var(--dsw-alias-bg-layer-1,rgba(255,255,255,.9));color:var(--dsw-alias-brand,#247bbf);font-weight:500}',
-			'.dsh-pr-area{width:100%;box-sizing:border-box;min-height:180px;padding:8px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.06));color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;line-height:20px;resize:vertical}',
+			'.dsh-pr-area{width:100%;box-sizing:border-box;min-height:260px;padding:8px 10px;border-radius:8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));background:var(--dsw-alias-bg-layer-2,rgba(127,127,127,.06));color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;line-height:20px;resize:vertical}',
 			'.dsh-pr-area:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
 			'.dsh-pr-area:disabled{cursor:default;opacity:.6}',
-			'.dsh-pr-switch{position:relative;flex:none;width:34px;height:19px;padding:0;border:none;border-radius:999px;background:var(--dsw-alias-border-l2,rgba(127,127,127,.4));cursor:pointer;transition:background-color 120ms ease}',
-			'.dsh-pr-switch:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
-			'.dsh-pr-switch:disabled{cursor:default;opacity:.5}',
-			'.dsh-pr-switch[aria-checked="true"]{background:var(--dsw-alias-brand,#247bbf)}',
-			'.dsh-pr-switch-knob{position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;border-radius:50%;background:var(--dsw-alias-bg-layer-1,#fff);transition:transform 120ms ease}',
-			'.dsh-pr-switch[aria-checked="true"] .dsh-pr-switch-knob{transform:translateX(15px)}',
-			// A2 布局：两列开关栅格、模型两列子字段、提示词 meta 行、吸底保存条
-			'.dsh-pr-ctrl-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 32px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:10px;padding:14px 16px}',
-			'.dsh-pr-ctrl-item{display:flex;align-items:center;gap:12px;min-width:0}',
-			'.dsh-pr-ctrl-text{flex:1;min-width:0}',
-			'.dsh-pr-ctrl-item .dsh-pr-switch{flex:none}',
+			// ── 六格仪表盘（用户定稿 2026-11-06）─────────────────────────────
+			// 一行六个**等宽等高**控件：启用 / 读取上下文 / 预设下拉 / 显示按钮 /
+			// 编辑 / 恢复默认。六格各自带框，外层再套一层大框把它们圈成一组（用户选定 A 方案）。
+			// 宽度账：页面 720px − 外框 2×12 − 边框 2 = 694；减去 5 个 10px 间隙 = 644；
+			// 再 ÷6 ≈ 107px 每格。格里扣掉边框与 8px 内边距后约 89px，勾选框 14 + 间隙 6
+			// 占 20，文字剩约 69px —— 因此字号压到 12px（5 个字 ≈ 60px）才不折行。
+			'.dsh-pr-panel{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:center;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:12px;padding:12px}',
+			'.dsh-pr-panel>.dsh-pr-cell{min-width:0}',
+			// 下拉 / 名称框的文字居中（用户要求）；勾选与按钮的居中由各自规则负责。
+			'.dsh-pr-cell .dsh-pr-select,.dsh-pr-cell .dsh-pr-input{text-align:center;text-align-last:center}',
+			'.dsh-pr-panel .dsh-pr-input{height:32px;background-color:var(--dsw-alias-bg-layer-1,#fff)}',
 			'.dsh-pr-sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px}',
 			'.dsh-pr-field-k{display:block;font-family:inherit;font-size:11px;font-weight:500;line-height:14px;letter-spacing:.08em;color:var(--dsw-alias-label-tertiary,currentColor);margin-bottom:6px}',
-			'.dsh-pr-select{appearance:none;width:100%;box-sizing:border-box;height:32px;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff) no-repeat right 10px center;color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:13px;cursor:pointer}',
+			'.dsh-pr-select{appearance:none;width:100%;box-sizing:border-box;height:32px;padding:0 26px 0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background-color:var(--dsw-alias-bg-layer-1,#fff);background-image:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\' fill=\'none\'%3E%3Cpath d=\'M3 4.5L6 7.5L9 4.5\' stroke=\'%23888\' stroke-width=\'1.4\' stroke-linecap=\'round\' stroke-linejoin=\'round\'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 9px center;color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:12px;cursor:pointer}',
 			'.dsh-pr-select:hover:not(:disabled){border-color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'.dsh-pr-select:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand-soft,rgba(36,123,191,.15))}',
 			'.dsh-pr-select:disabled{cursor:default;opacity:.5}',
+			// §5.2's settings dashboard, as reworked on user feedback (2026-11-06):
+			// ONE row of SIX equally-sized, equally-tall boxed controls —
+			//   ① 启用（勾选） ② 读取上下文（勾选） ③ 预设下拉（编辑态变名称输入框）
+			//   ④ 显示按钮（勾选） ⑤ 编辑 / 完成 ⑥ 默认
+			// All six share the same border, radius and 32px height so the row reads as
+			// one instrument panel, and the panel itself sits inside one outer frame;
+			// the old title row above the textarea is gone.
+			'.dsh-pr-checkbox{display:flex;align-items:center;gap:6px;box-sizing:border-box;height:32px;padding:0 8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background-color:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,currentColor);font-size:12px;line-height:18px;white-space:nowrap;overflow:hidden;cursor:pointer}',
+			'.dsh-pr-checkbox input{width:14px;height:14px;margin:0;flex:none;accent-color:var(--dsw-alias-brand,#247bbf);cursor:pointer}',
+			'.dsh-pr-checkbox input:disabled{cursor:default}',
+			'.dsh-pr-checkbox>span{min-width:0;overflow:hidden;text-overflow:ellipsis}',
+			'.dsh-pr-ctlbtn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;width:100%;height:32px;padding:0 8px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background-color:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:12px;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease}',
+			'.dsh-pr-ctlbtn>span{flex:1;min-width:0;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
+			'.dsh-pr-ctlbtn:hover:not(:disabled){background-color:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.14))}',
+			'.dsh-pr-ctlbtn:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand-soft,rgba(36,123,191,.15))}',
+			'.dsh-pr-ctlbtn:disabled{cursor:default;opacity:.5}',
+			'.dsh-pr-ctlbtn[aria-pressed="true"]{border-color:var(--dsw-alias-brand,#247bbf);color:var(--dsw-alias-brand,#247bbf)}',
+			'.dsh-pr-input{width:100%;box-sizing:border-box;height:32px;padding:0 10px;border:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25));border-radius:8px;background:var(--dsw-alias-bg-layer-1,#fff);color:var(--dsw-alias-label-primary,currentColor);font:inherit;font-size:12px}',
+			'.dsh-pr-input:focus-visible{outline:none;border-color:var(--dsw-alias-brand,#247bbf);box-shadow:0 0 0 2px var(--dsw-alias-brand-soft,rgba(36,123,191,.15))}',
+			// The edit gate is visible, not just functional (§9.1): a gated field looks
+			// inert until 「编辑」 is pressed, so the read-only state is not mistaken for
+			// a broken input.
+			'.dsh-pr-input[readonly],.dsh-pr-area[readonly]{cursor:default;opacity:.75}',
+			'.dsh-pr-input[data-editing="true"],.dsh-pr-area[data-editing="true"]{opacity:1;background:var(--dsw-alias-bg-layer-1,#fff)}',
+			'.dsh-pr-input:disabled{cursor:default;opacity:.5}',
+			// 勾选框现在只出现在预设行的横排格里，因此不再需要竖排用的 margin-top
+			// （CSS 审计 2026-11-06：原来那条 margin-top:10px 永远被覆盖，已删除）。
+			// The title row's tool cluster (edit gate + restore default), so the gate
+			// sits on the same line as the textarea heading.
 			'.dsh-pr-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:14px;border-top:1px solid var(--dsw-alias-border-l2,rgba(127,127,127,.25))}',
 			'.dsh-pr-foot .dsh-pr-grow{flex:1}',
 			'.dsh-pr-count{font-size:12px;color:var(--dsw-alias-label-tertiary,currentColor)}',
 			'.dsh-pr-count[data-dirty="true"]{color:var(--dsw-alias-label-primary,currentColor)}',
-			'@media (max-width:480px){.dsh-pr-ctrl-grid,.dsh-pr-sub-grid{grid-template-columns:1fr}}',
+			'@media (max-width:660px){.dsh-pr-panel{grid-template-columns:repeat(3,minmax(0,1fr))}}',
+			'@media (max-width:480px){.dsh-pr-panel,.dsh-pr-sub-grid{grid-template-columns:1fr}}',
 			'.dsh-pr-save{border:none;border-radius:8px;padding:6px 14px;background:var(--dsw-alias-brand,#247bbf);color:var(--dsw-alias-bg-layer-1,#fff);font:inherit;font-size:13px;line-height:20px;font-weight:500;cursor:pointer}',
 			'.dsh-pr-save:hover:not(:disabled){filter:brightness(1.06)}',
 			'.dsh-pr-save:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
@@ -351,10 +421,6 @@ window.__ModuleLoader__.load({
 			'.dsh-pr-ghost:hover:not(:disabled){color:var(--dsw-alias-label-primary,currentColor);background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.14))}',
 			'.dsh-pr-ghost:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
 			'.dsh-pr-ghost:disabled{cursor:default;opacity:.5}',
-			'.dsh-pr-reset{border:none;border-radius:6px;padding:2px 8px;background:transparent;color:var(--dsw-alias-label-tertiary,currentColor);font:inherit;font-size:12px;line-height:18px;cursor:pointer}',
-			'.dsh-pr-reset:hover:not(:disabled){color:var(--dsw-alias-label-primary,currentColor);background:var(--dsw-alias-interactive-bg-hover,rgba(127,127,127,.14))}',
-			'.dsh-pr-reset:focus-visible{outline:none;box-shadow:0 0 0 2px var(--dsw-alias-brand,#247bbf)}',
-			'.dsh-pr-reset:disabled{cursor:default;opacity:.5}',
 		].join('\n');
 
 		/** Mount the stylesheet once per plugin lifetime, and remove it on unload. */
@@ -373,18 +439,28 @@ window.__ModuleLoader__.load({
 		// Glyphs
 		// -------------------------------------------------------------------
 
-		/** The refine mark: three shortening lines (a draft) plus a sparkle. */
-		function RefineGlyph() {
+		/**
+		 * The idle mark, taken from the requester's `ic_我的订单.svg` (D9).
+		 *
+		 * The source artwork is a 1024×1024 export with two filled paths; the
+		 * exporter's `p-id` / `class` / `t` attributes are dropped, `fill` is
+		 * `currentColor` so the button's own colour rules (including the busy/undo/
+		 * error states and dark mode) keep working, and the viewBox is preserved
+		 * exactly so the shape is not rescaled by a hand-written path.
+		 */
+		function OrderGlyph() {
 			return h(
 				'svg',
 				{
-					viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none',
-					stroke: 'currentColor', strokeWidth: 1.7,
-					strokeLinecap: 'round', strokeLinejoin: 'round',
+					viewBox: '0 0 1024 1024', width: 16, height: 16, fill: 'currentColor',
 					'aria-hidden': true, focusable: 'false',
 				},
-				h('path', { d: 'M4 7h9M4 12h6M4 17h4.5' }),
-				h('path', { d: 'M17.6 4.4l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z' }),
+				h('path', {
+					d: 'M851.6608 296.1408l-193.024-182.784v178.2784c0 2.5088 2.048 4.5056 4.5568 4.5056h188.416zM588.8 104.704H209.408a58.1632 58.1632 0 0 0-58.1632 58.2144v721.408A58.1632 58.1632 0 0 0 209.408 942.592h605.0816a58.2144 58.2144 0 0 0 58.1632-58.1632V365.9776h-209.5104A74.3424 74.3424 0 0 1 588.8 291.6352v-186.88z m353.6896 779.6736a128 128 0 0 1-128 128H209.4592a128 128 0 0 1-128-128V162.9184a128 128 0 0 1 128-128h444.7744c14.8992 0 29.184 5.6832 40.0384 15.9232l230.0928 218.0096a58.2656 58.2656 0 0 1 18.176 42.24v573.2864z',
+				}),
+				h('path', {
+					d: 'M698.7264 709.8368H312.32a34.9184 34.9184 0 0 0 0 69.7856h386.3552a34.9184 34.9184 0 0 0 0-69.7856zM698.7264 523.6224H312.32a34.9184 34.9184 0 1 0 0 69.8368h386.3552a34.9184 34.9184 0 1 0 0-69.8368z',
+				}),
 			);
 		}
 
@@ -523,6 +599,72 @@ window.__ModuleLoader__.load({
 		}
 
 		/**
+		 * The Config field holding one preset's display name.
+		 * @param preset - one of the four preset keys.
+		 * @returns the `nameXxx` field carrying that preset's name.
+		 */
+		function nameField(preset) {
+			return `name${normalizePreset(preset)[0].toUpperCase()}${normalizePreset(preset).slice(1)}`;
+		}
+
+		/**
+		 * One preset's display name, normalized exactly as §6.3 says.
+		 *
+		 * Non-string → the built-in name; trimmed; capped at 12 code points (the
+		 * host caps by code point too, so an emoji or a CJK glyph counts as one);
+		 * empty after trimming → the built-in name again. The cap uses `Array.from`
+		 * so a surrogate pair is never split in half.
+		 *
+		 * @param preset - one of the four preset keys.
+		 * @param raw - the name as the document (or a staged draft) carries it.
+		 * @returns a non-empty display name.
+		 */
+		function normalizeName(preset, raw) {
+			const fallback = DEFAULT_NAMES[normalizePreset(preset)];
+			if (typeof raw !== 'string') return fallback;
+			const trimmed = raw.trim();
+			if (trimmed.length === 0) return fallback;
+			const points = Array.from(trimmed);
+			return points.length > 12 ? points.slice(0, 12).join('') : trimmed;
+		}
+
+		/**
+		 * Which presets the composer shows buttons for (§6.3 / §8.2).
+		 *
+		 * `undefined` (or a non-array) means the resolved view has never carried the
+		 * key — an upgraded old config, or a schema default the host did not
+		 * materialize. That maps to ALL FOUR, never to the empty list: mapping it to
+		 * `[]` would leave every existing user with no buttons at all. An explicit
+		 * `[]` is the user's own "none", and stays empty (D18).
+		 *
+		 * @param raw - the `presetButtons` value from the resolved config view.
+		 * @returns preset keys in segment order, de-duplicated.
+		 */
+		function normalizePresetButtons(raw) {
+			if (!Array.isArray(raw)) return [...PRESET_KEYS];
+			const seen = new Set();
+			for (const entry of raw) {
+				if (typeof entry !== 'string') continue;
+				if (!PRESET_KEYS.includes(entry)) continue;
+				seen.add(entry);
+			}
+			// Render order is the segment order, never the array order (D7).
+			return PRESET_KEYS.filter((key) => seen.has(key));
+		}
+
+		/**
+		 * The four resolved display names of one config view.
+		 * @param value - a config view (resolved values, or a draft-merged view).
+		 * @returns `{ general, code, writing, translation }`, each non-empty.
+		 */
+		function resolveNames(value) {
+			const source = value !== null && typeof value === 'object' ? value : {};
+			const names = {};
+			for (const key of PRESET_KEYS) names[key] = normalizeName(key, source[nameField(key)]);
+			return names;
+		}
+
+		/**
 		 * Why saving is currently impossible, or null.
 		 *
 		 * One verdict for every reader (banner, button, save gate): a fixed model
@@ -564,10 +706,21 @@ window.__ModuleLoader__.load({
 		 * follow the built-in default again" — storing an empty string or a copy of
 		 * the default would silently freeze today's default text into the document.
 		 *
+		 * The NAME fields join the prompt fields here (§9.3): an emptied name must
+		 * clear the override and fall back to `OptionX`, not write `''` into the
+		 * document, which would override the default with nothing. `presetButtons`
+		 * never takes this path — an array is never "cleared to an empty string"; an
+		 * explicit `[]` is a real value the user asked to store.
+		 *
 		 * @param field - the Config field being staged.
 		 * @param value - the staged value.
 		 * @returns whether the save must clear this field instead of setting it.
 		 */
+		function isFieldClear(field, value) {
+			if (value === null) return true;
+			return (PROMPT_FIELDS.includes(field) || NAME_FIELDS.includes(field)) && value === '';
+		}
+
 		/**
 		 * Flatten the catalogue into native-select options: `provider · model` rows in
 		 * catalogue order. Used by the fixed-model `<select>`.
@@ -612,11 +765,6 @@ window.__ModuleLoader__.load({
 			return rows;
 		}
 
-		function isFieldClear(field, value) {
-			if (value === null) return true;
-			return PROMPT_FIELDS.includes(field) && value === '';
-		}
-
 		/**
 		 * The page's one rendered state.
 		 *
@@ -659,8 +807,85 @@ window.__ModuleLoader__.load({
 		 */
 		const TASKS = new Map();
 
-		/** In-flight abort handle per SessionId; present only while a run is open. */
+		/**
+		 * In-flight run per SessionId; present only while a run is open.
+		 *
+		 * The value is `{ presetId, controller }`, NOT a bare controller: one session
+		 * may only run one preset at a time (§8.1), so the record has to name WHICH
+		 * preset owns the controller. Without the `presetId` the other three buttons
+		 * cannot tell "someone else is running" from "I am running".
+		 */
 		const RUNNING = new Map();
+
+		/**
+		 * The task key of one preset in one session (§8.1).
+		 *
+		 * NUL-joined so no legal session id or preset key can collide with another
+		 * pair. `presetId` is `'general'` in the degraded path (§8.2 rule 4), which
+		 * keeps the key shape identical whether or not the preset store is ready.
+		 *
+		 * @param sessionId - the slot's session id.
+		 * @param presetId - one of the four preset keys.
+		 * @returns the `TASKS` key.
+		 */
+		function taskKey(sessionId, presetId) {
+			return `${sessionId}\u0000${presetId}`;
+		}
+
+		/**
+		 * Module-level change bus for the TASK TABLES only.
+		 *
+		 * `TASKS` and `RUNNING` are bare Maps whose writes happen inside one button's
+		 * async callback. Once each preset is its own component instance, the
+		 * writing instance re-renders (its own `useReducer`) and the OTHER three do
+		 * not — their `disabled` would stay at the previous frame's `false`, and a
+		 * click there would `RUNNING.set(...)` over the live controller, silently
+		 * orphaning the running spinner. So every write below goes through
+		 * `notifyTasks()`, and every mounted button subscribes to this bus.
+		 *
+		 * Deliberately NOT `createCatalogStore`: that one is the model catalogue's
+		 * own store (its own `subscribe`/`listeners`/`load`), and reusing it would
+		 * tie the composer's redraw to a remote load it does not need.
+		 */
+		const taskSubscribers = new Set();
+
+		/** Tell every mounted composer control that a task table changed. */
+		function notifyTasks() {
+			for (const listener of [...taskSubscribers]) listener();
+		}
+
+		/**
+		 * Subscribe a component to TASKS/RUNNING changes.
+		 * @param listener - called after every write to either table.
+		 * @returns the unsubscribe function.
+		 */
+		function subscribeTasks(listener) {
+			taskSubscribers.add(listener);
+			return () => {
+				taskSubscribers.delete(listener);
+			};
+		}
+
+		/** Write one task record, then broadcast. */
+		function setTask(key, record) {
+			TASKS.set(key, record);
+			notifyTasks();
+		}
+
+		/** Open a run, then broadcast. */
+		function openRun(sessionId, presetId, controller) {
+			RUNNING.set(sessionId, { presetId, controller });
+			notifyTasks();
+		}
+
+		/** Close a run, then broadcast. Only the owner's own handle closes it. */
+		function closeRun(sessionId, controller) {
+			const current = RUNNING.get(sessionId);
+			if (current === undefined) return;
+			if (controller !== undefined && current.controller !== controller) return;
+			RUNNING.delete(sessionId);
+			notifyTasks();
+		}
 
 		/**
 		 * One empty (staged-nothing) page draft.
@@ -671,12 +896,15 @@ window.__ModuleLoader__.load({
 				enabled: undefined, preset: undefined,
 				promptGeneral: undefined, promptCode: undefined,
 				promptWriting: undefined, promptTranslation: undefined,
+				nameGeneral: undefined, nameCode: undefined,
+				nameWriting: undefined, nameTranslation: undefined,
+				presetButtons: undefined,
 				contextEnabled: undefined, modelMode: undefined,
 				provider: undefined, model: undefined, reasoningEffort: undefined,
 			};
 		}
 
-		/** The four visible model fields of one draft, for equality checks. */
+		/** The visible fields of one draft, for equality checks. */
 		function visibleDraft(draft) {
 			return {
 				enabled: draft.enabled,
@@ -685,6 +913,11 @@ window.__ModuleLoader__.load({
 				promptCode: draft.promptCode,
 				promptWriting: draft.promptWriting,
 				promptTranslation: draft.promptTranslation,
+				nameGeneral: draft.nameGeneral,
+				nameCode: draft.nameCode,
+				nameWriting: draft.nameWriting,
+				nameTranslation: draft.nameTranslation,
+				presetButtons: draft.presetButtons,
 				contextEnabled: draft.contextEnabled,
 				modelMode: draft.modelMode,
 				provider: draft.provider,
@@ -698,6 +931,106 @@ window.__ModuleLoader__.load({
 			const left = JSON.stringify(visibleDraft(a));
 			const right = JSON.stringify(visibleDraft(b));
 			return left === right;
+		}
+
+		// -------------------------------------------------------------------
+		// The preset store (composer side)
+		// -------------------------------------------------------------------
+
+		/**
+		 * What the composer needs to know about the user's preset choice.
+		 *
+		 * `ready` is not decoration: "the store has not attached yet" and "the user
+		 * unchecked all four" both look like "no presets to show", and §8.2 gives
+		 * them opposite renderings — degrade to ONE button, versus show NOTHING.
+		 * Without the flag the two would collapse into whichever branch won.
+		 *
+		 * `shown` is already normalized (segment order, deduped, all four when the
+		 * resolved view has never carried the key) and `names` is already resolved
+		 * (built-in fallback applied), so a consumer needs no rules of its own.
+		 */
+		function createPresetStore() {
+			const listeners = new Set();
+			let form = null;
+			let disposeForm = null;
+
+			/** The degraded snapshot: not attached, so the composer shows one button. */
+			function degradedSnapshot() {
+				return { ready: false, shown: [...PRESET_KEYS], names: { ...DEFAULT_NAMES } };
+			}
+
+			/**
+			 * Derive the snapshot from the form's CURRENT state.
+			 *
+			 * Read-through rather than cached: `getSnapshot()` is what React calls on
+			 * every render, and a cache that only refreshed on the form's own
+			 * notifications would hand back the previous array for any change the
+			 * notification missed (a form that refolds without firing, a second page
+			 * writing through the same service). The derivation is four string
+			 * normalizations and one array filter, so there is nothing to save.
+			 *
+			 * Reads `snap.value` — the RESOLVED view with schema defaults merged in —
+			 * never `snap.user` (§6.3). `user` is the raw document and only carries
+			 * keys the user has explicitly written, so a user who never touched
+			 * `presetButtons` would read as "zero checked" and lose every button on
+			 * upgrade, which is exactly what §11 forbids.
+			 *
+			 * @returns the current `{ ready, shown, names }`.
+			 */
+			function read() {
+				if (form === null) return degradedSnapshot();
+				const snap = form.getSnapshot();
+				const resolved = snap !== null && typeof snap === 'object'
+					&& snap.status === 'ready' && snap.value !== null && typeof snap.value === 'object'
+					? snap.value
+					: null;
+				if (resolved === null) {
+					// The form exists but is not serving yet: stay degraded rather than
+					// reporting an empty list, which would read as "user unchecked all".
+					return degradedSnapshot();
+				}
+				return {
+					ready: true,
+					shown: normalizePresetButtons(resolved.presetButtons),
+					names: resolveNames(resolved),
+				};
+			}
+
+			/** Tell every mounted composer control that the preset view changed. */
+			function notify() {
+				for (const listener of [...listeners]) listener();
+			}
+
+			return {
+				/** The current snapshot; safe to call before `attach`. */
+				getSnapshot: read,
+				subscribe(listener) {
+					listeners.add(listener);
+					return () => {
+						listeners.delete(listener);
+					};
+				},
+				/**
+				 * Bind to the settings form and start mirroring it.
+				 * @param configForms - the scoped `configForms` service.
+				 */
+				attach(configForms) {
+					if (form !== null) return;
+					form = configForms.get(NS);
+					const dispose = form.subscribe(() => notify());
+					disposeForm = typeof dispose === 'function' ? dispose : null;
+					// The attach itself is a change: buttons that rendered degraded
+					// before the form resolved must repaint as the real set.
+					notify();
+				},
+				/** Drop the form subscription (plugin unload). */
+				dispose() {
+					if (disposeForm !== null) disposeForm();
+					disposeForm = null;
+					form = null;
+					notify();
+				},
+			};
 		}
 
 		// -------------------------------------------------------------------
@@ -812,6 +1145,12 @@ window.__ModuleLoader__.load({
 				this.stagedRevision = undefined;
 				this.saving = false;
 				this.failed = false;
+				/**
+				 * The edit gate (§9.2). Transient on purpose: never staged, never
+				 * persisted, never counted as a dirty item. The name input and the
+				 * prompt textarea are read-only unless this is true.
+				 */
+				this.editing = false;
 				this.catalog = createCatalogStore(this.remote);
 				this.disposeForm = this.form.subscribe(() => this.notify());
 				this.disposers = [];
@@ -885,18 +1224,46 @@ window.__ModuleLoader__.load({
 				return value !== null && value !== undefined && typeof value[field] === 'string' ? value[field] : '';
 			}
 
+			/**
+			 * One name field as the document (or the draft) holds it, raw.
+			 *
+			 * Raw on purpose: the input must show exactly what the user typed, and
+			 * an emptied box has to stay empty until it is saved — the built-in
+			 * fallback is a DISPLAY concern (`view.names`), not an input value.
+			 *
+			 * @param preset - one of the four preset keys.
+			 * @returns the stored name, or `''` when the document has none.
+			 */
+			nameView(preset) {
+				const field = nameField(preset);
+				const staged = this.draft[field];
+				if (staged !== undefined) return staged;
+				const snap = this.snapshot;
+				const value = snap !== null && snap.status === 'ready' ? snap.value : undefined;
+				return value !== null && value !== undefined && typeof value[field] === 'string' ? value[field] : '';
+			}
+
 			/** One merged view: snapshot values with staged edits on top. */
 			get view() {
 				const snap = this.snapshot;
 				const value = snap !== null && snap.status === 'ready' && snap.value !== undefined && snap.value !== null ? snap.value : {};
 				const draft = this.draft;
-				return {
+				const merged = {
 					enabled: draft.enabled !== undefined ? draft.enabled : value.enabled,
 					preset: normalizePreset(draft.preset !== undefined ? draft.preset : value.preset),
 					promptGeneral: this.promptView('promptGeneral'),
 					promptCode: this.promptView('promptCode'),
 					promptWriting: this.promptView('promptWriting'),
 					promptTranslation: this.promptView('promptTranslation'),
+					nameGeneral: this.nameView('general'),
+					nameCode: this.nameView('code'),
+					nameWriting: this.nameView('writing'),
+					nameTranslation: this.nameView('translation'),
+					// Staged array wins wholesale (§9.3: the checkbox replaces the whole
+					// array, it never toggles one member in place).
+					presetButtons: normalizePresetButtons(
+						draft.presetButtons !== undefined ? draft.presetButtons : value.presetButtons,
+					),
 					contextEnabled: draft.contextEnabled !== undefined ? draft.contextEnabled : value.contextEnabled,
 					modelMode: draft.modelMode !== undefined ? draft.modelMode : value.modelMode,
 					provider: draft.provider !== undefined ? draft.provider : (typeof value.provider === 'string' ? value.provider : ''),
@@ -905,6 +1272,20 @@ window.__ModuleLoader__.load({
 						? draft.reasoningEffort
 						: (typeof value.reasoningEffort === 'string' ? value.reasoningEffort : ''),
 				};
+				// Display names, already resolved (built-in fallback applied). Derived
+				// from the merged view so a staged rename shows up in the dropdown, the
+				// textarea title and the composer without a round trip.
+				merged.names = resolveNames(merged);
+				return merged;
+			}
+
+			/**
+			 * The display name of one preset in the merged view.
+			 * @param preset - one of the four preset keys.
+			 * @returns a non-empty name (`OptionX` when unnamed or cleared).
+			 */
+			displayName(preset) {
+				return normalizeName(preset, this.nameView(preset));
 			}
 
 			/** Whether one prompt field carries an override in the document. */
@@ -935,7 +1316,68 @@ window.__ModuleLoader__.load({
 			/** Switch the preset the textarea edits (local only; saved on save). */
 			selectPreset(preset) {
 				if (normalizePreset(this.view.preset) === preset) return;
+				// §9.2: switching the dropdown closes the edit gate. Set BEFORE the
+				// stage so the single notification that follows already carries the
+				// closed gate — the other preset's staged text stays staged (it is
+				// already in `draft`); only the gate, which is about the field the user
+				// is LOOKING at, resets.
+				this.editing = false;
 				this.stage('preset', preset);
+			}
+
+			/** Open or close the edit gate (§9.2). Never staged, never persisted. */
+			setEditing(editing) {
+				this.editing = editing === true;
+				this.notify();
+			}
+
+			/** Flip the edit gate (the 「编辑 / 完成」 button). */
+			toggleEditing() {
+				this.setEditing(!this.editing);
+			}
+
+			/**
+			 * Stage a rename (§9.3).
+			 *
+			 * The empty string is staged as-is: `isFieldClear` turns it into an
+			 * `unset` at save time, so the document falls back to `OptionX` instead
+			 * of storing an empty name.
+			 *
+			 * The 12-code-point cap is applied HERE rather than through the input's
+			 * `maxLength`: `maxLength` counts UTF-16 code units, so it would cut a
+			 * surrogate pair (an emoji, or a rare CJK glyph) in half and let six
+			 * emoji through where §6.3 allows twelve. Capping the staged value keeps
+			 * the rule in one place — the same one `normalizeName` uses.
+			 *
+			 * @param preset - one of the four preset keys.
+			 * @param text - the raw input value.
+			 */
+			editName(preset, text) {
+				const raw = typeof text === 'string' ? text : '';
+				const points = Array.from(raw);
+				this.stage(nameField(preset), points.length > 12 ? points.slice(0, 12).join('') : raw);
+			}
+
+			/** Whether the composer shows a button for one preset (§9.3). */
+			isButtonShown(preset) {
+				return normalizePresetButtons(this.view.presetButtons).includes(preset);
+			}
+
+			/**
+			 * Show or hide one preset's composer button.
+			 *
+			 * Replaces the WHOLE array in one staged write (§9.3) — a partial update
+			 * would need a second field to describe it, and the save already sends
+			 * `presetButtons` as one value.
+			 *
+			 * @param preset - one of the four preset keys.
+			 */
+			toggleButton(preset) {
+				const current = normalizePresetButtons(this.view.presetButtons);
+				const next = current.includes(preset)
+					? current.filter((key) => key !== preset)
+					: PRESET_KEYS.filter((key) => key === preset || current.includes(key));
+				this.stage('presetButtons', next);
 			}
 
 			/** The draft text for one preset: staged edit, staged clear, or document. */
@@ -1009,6 +1451,8 @@ window.__ModuleLoader__.load({
 				this.draft = emptyDraft();
 				this.stagedRevision = undefined;
 				this.failed = false;
+				// §9.2: discarding also closes the gate.
+				this.editing = false;
 				this.notify();
 			}
 
@@ -1073,6 +1517,10 @@ window.__ModuleLoader__.load({
 					}
 					this.draft = emptyDraft();
 					this.stagedRevision = undefined;
+					// §9.2: a successful save settles the page back to read-only. A
+					// FAILED save returns above without touching the gate, so the user
+					// stays in edit mode and can fix the cause and retry.
+					this.editing = false;
 				} finally {
 					this.saving = false;
 					this.notify();
@@ -1090,38 +1538,26 @@ window.__ModuleLoader__.load({
 			useEffect(() => source.subscribe(() => force()), [source]);
 		}
 
-		/** The prompt editor: full text, staged draft, unset semantics. */
-		function PromptEditor({ controller, preset, t, disabled }) {
+		/**
+		 * The prompt editor: the full text of the active preset.
+		 *
+		 * 用户反馈（2026-11-06）：标题行「{名字}预设的完整提示词」整行删除，编辑/恢复默认
+		 * 两个按钮移到上面那一行（四个等高线框之一）。这里只留 textarea；`aria-label`
+		 * 仍带着那个标题文案，读屏用户仍能听到「这是哪套预设的提示词」。
+		 *
+		 * The textarea is read-only until the gate is open (§9.1).
+		 */
+		function PromptEditor({ controller, preset, t, disabled, editing }) {
 			const text = controller.promptDraft(preset);
-			const overridden = controller.promptOverridden(preset);
-			const isDefault = controller.draft[presetField(preset)] === undefined && !overridden;
-			return h(
-				'div',
-				{ className: 'dsh-pr-row' },
-				h(
-					'div',
-					{ className: 'dsh-pr-rowhead' },
-					h('span', { className: 'dsh-pr-label' }, t('prompt.title', { preset: t(`preset.${preset}`) })),
-					h(
-						'button',
-						{
-							type: 'button',
-							className: 'dsh-pr-reset',
-							disabled: disabled || isDefault,
-							onClick: () => controller.resetPrompt(preset),
-						},
-						t('prompt.restoreDefault'),
-					),
-				),
-				h('textarea', {
-					className: 'dsh-pr-area',
-					value: text,
-					disabled,
-					'aria-label': t('prompt.title', { preset: t(`preset.${preset}`) }),
-					onChange: (event) => controller.editPrompt(preset, event.target.value),
-				}),
-
-			);
+			return h('textarea', {
+				className: 'dsh-pr-area',
+				value: text,
+				readOnly: !editing,
+				disabled,
+				'data-editing': String(editing),
+				'aria-label': t('prompt.title', { preset: controller.displayName(preset) }),
+				onChange: (event) => controller.editPrompt(preset, event.target.value),
+			});
 		}
 
 		/**
@@ -1141,6 +1577,18 @@ window.__ModuleLoader__.load({
 			const view = controller.view;
 			const writable = stateWritable(state);
 			const block = controller.block;
+			// §9.1's edit gate: name input and textarea are read-only until 「编辑」 is
+			// pressed. A page the Host refuses to write can never open the gate, so a
+			// stale `editing: true` cannot leave an editable field on a read-only page.
+			const editing = controller.editing === true && writable;
+			// The preset the six-cell row acts on. Everything in that row (dropdown,
+			// checkbox, edit gate, restore) targets THIS preset.
+			const activePreset = normalizePreset(view.preset);
+			// Whether 「恢复默认」 would be a no-op: the document carries no override
+			// AND nothing is staged for this field. Computed here because the button
+			// now lives in the row, not in the (deleted) prompt title row.
+			const promptIsDefault = controller.draft[presetField(activePreset)] === undefined
+				&& !controller.promptOverridden(activePreset);
 			// The catalogue is loaded when the page mounts: a native `<select>` has no
 			// "opened, so fetch now" moment the old custom Menu had.
 			useEffect(() => {
@@ -1161,52 +1609,104 @@ window.__ModuleLoader__.load({
 					className: 'dsh-pr-state',
 					'data-tone': block !== null ? 'blocked' : state === 'failed' ? 'failed' : state === 'saving' ? 'saving' : state === 'dirty' ? 'dirty' : 'idle',
 				}, block !== null ? t(block) : t(`page.${state}`)),
-				h('div', { className: 'dsh-pr-ctrl-grid' },
-					h(
-						'div',
-						{ className: 'dsh-pr-ctrl-item' },
-						h('div', { className: 'dsh-pr-ctrl-text' },
-							h('div', { className: 'dsh-pr-label' }, t('enabled.label')),
+				// 用户反馈（2026-11-06）定稿形态：**一行六个等高控件，外层再套一个大框**。
+				// 顺序固定：① 启用 ② 读取上下文 ③ 预设下拉 ④ 显示按钮 ⑤ 编辑 ⑥ 恢复默认。
+				// 拨动开关样式已废弃——① ② 改用与 ④ 同款的「框内勾选框 + 文字」，
+				// 于是整行六格的边框、圆角、32px 高度完全一致。外框只负责把它们圈成一组。
+				h('div', { className: 'dsh-pr-panel' },
+					h('div', { className: 'dsh-pr-cell' },
+						h('label', { className: 'dsh-pr-checkbox' },
+							h('input', {
+								type: 'checkbox',
+								checked: view.enabled === true,
+								disabled: !writable,
+								onChange: () => controller.toggleEnabled(),
+							}),
+							h('span', {}, t('enabled.label')),
 						),
+					),
+					h('div', { className: 'dsh-pr-cell' },
+						h('label', { className: 'dsh-pr-checkbox' },
+							h('input', {
+								type: 'checkbox',
+								checked: view.contextEnabled === true,
+								disabled: !writable,
+								onChange: () => controller.toggleContext(),
+							}),
+							h('span', {}, t('context.label')),
+						),
+					),
+					h('div', { className: 'dsh-pr-cell' },
+						// 点「编辑」时这一格从下拉变成可输入的名称框（即「下拉框里的内容可以改」）。
+						editing
+							? h('input', {
+								className: 'dsh-pr-input',
+								type: 'text',
+								value: controller.nameView(activePreset),
+								placeholder: DEFAULT_NAMES[activePreset],
+								'aria-label': t('name.label'),
+								onChange: (event) => controller.editName(activePreset, event.target.value),
+							})
+							: h('select', {
+								className: 'dsh-pr-select',
+								'aria-label': t('preset.pickLabel'),
+								disabled: !writable,
+								value: activePreset,
+								onChange: (event) => controller.selectPreset(event.target.value),
+							}, PRESET_KEYS.map((key) => h(
+								'option',
+								{ key, value: key },
+								// 下拉里不显示勾选标记，只显示生效名（用户要求）。
+								view.names[key],
+							))),
+					),
+					h('div', { className: 'dsh-pr-cell' },
+						h('label', { className: 'dsh-pr-checkbox' },
+							h('input', {
+								type: 'checkbox',
+								checked: view.presetButtons.includes(activePreset),
+								disabled: !writable,
+								onChange: () => controller.toggleButton(activePreset),
+							}),
+							h('span', {}, t('showButton.label')),
+						),
+					),
+					h('div', { className: 'dsh-pr-cell' },
 						h('button', {
 							type: 'button',
-							className: 'dsh-pr-switch',
-							role: 'switch',
-							'aria-checked': view.enabled === true,
+							className: 'dsh-pr-ctlbtn',
+							'aria-pressed': editing,
 							disabled: !writable,
-							onClick: () => controller.toggleEnabled(),
-						}, h('span', { className: 'dsh-pr-switch-knob' })),
+							onClick: () => controller.toggleEditing(),
+						}, h('span', null, editing ? t('action.done') : t('action.edit'))),
 					),
-					h(
-						'div',
-						{ className: 'dsh-pr-ctrl-item' },
-						h('div', { className: 'dsh-pr-ctrl-text' },
-							h('div', { className: 'dsh-pr-label' }, t('context.label')),
-						),
+					h('div', { className: 'dsh-pr-cell' },
 						h('button', {
 							type: 'button',
-							className: 'dsh-pr-switch',
-							role: 'switch',
-							'aria-checked': view.contextEnabled === true,
-							disabled: !writable,
-							onClick: () => controller.toggleContext(),
-						}, h('span', { className: 'dsh-pr-switch-knob' })),
+							className: 'dsh-pr-ctlbtn',
+							// §9.1: 「恢复默认」 is NOT gated by the edit door — it restores
+							// the built-in text and must stay reachable while read-only.
+							disabled: !writable || promptIsDefault,
+							onClick: () => controller.resetPrompt(activePreset),
+						}, h('span', null, t('prompt.restoreDefault'))),
 					),
 				),
-				h(
-					'div',
-					{ className: 'dsh-pr-row' },
-					h('div', { className: 'dsh-pr-rowhead' }, h('span', { className: 'dsh-pr-label' }, t('preset.groupLabel'))),
-					h('select', {
-						className: 'dsh-pr-select',
-						'aria-label': t('preset.groupLabel'),
-						disabled: !writable,
-						value: normalizePreset(view.preset),
-						onChange: (event) => controller.selectPreset(event.target.value),
-					}, PRESET_KEYS.map((key) => h('option', { key, value: key }, t(`preset.${key}`)))),
-				),
+				// §9.5: a NEUTRAL hint, and only when the resolved view really is an
+				// explicit empty array. While the form is unavailable the page already
+				// says so; adding "you unchecked everything" there would send the user
+				// to fix something they cannot change.
+				state !== 'unavailable' && view.presetButtons.length === 0
+					? h('p', { className: 'dsh-pr-sub' }, t('page.noButtons'))
+					: null,
 				...PRESET_KEYS.map((preset) => preset === normalizePreset(view.preset)
-					? h(PromptEditor, { key: preset, controller, preset, t, disabled: !writable })
+					? h(PromptEditor, {
+						key: preset,
+						controller,
+						preset,
+						t,
+						disabled: !writable,
+						editing,
+					})
 					: null),
 
 				h(
@@ -1306,13 +1806,173 @@ window.__ModuleLoader__.load({
 		// -------------------------------------------------------------------
 
 		/**
-		 * The composer control.
+		 * A store-shaped stand-in used when the slot delivers no inject face.
 		 *
-		 * Receives the slot's standard props: `sessionId`, `useInput`, `inputActions`
-		 * and the bound translator `t`.
+		 * It reports exactly the degraded snapshot (§8.2 rule 4): not ready, one
+		 * `general` entry, built-in names. A composer mounted against an older host
+		 * therefore renders the single pre-multi-preset button instead of throwing
+		 * on a missing service.
+		 */
+		const DEGRADED_PRESET_SOURCE = Object.freeze({
+			getSnapshot: () => ({
+				ready: false,
+				shown: [...PRESET_KEYS],
+				names: { ...DEFAULT_NAMES },
+			}),
+			subscribe: () => () => {},
+		});
+
+		/**
+		 * Subscribe a component to the TASKS/RUNNING bus.
+		 *
+		 * Defined outside `RefineControl` on purpose: the control's own body stays a
+		 * pure "read the stores, render N buttons" function, and every hook that
+		 * belongs to a SINGLE task lives in `RefineButton`.
+		 */
+		function useTaskBus() {
+			const [, force] = useReducer((n) => n + 1, 0);
+			useEffect(() => subscribeTasks(() => force()), []);
+		}
+
+		/**
+		 * The preset store's snapshot, as React state.
+		 *
+		 * `getSnapshot()` before `attach` is a legal call that returns the degraded
+		 * snapshot, so the first frame renders one button instead of throwing. When
+		 * the slot does not deliver the inject face at all (an older host), a frozen
+		 * degraded snapshot is used: the composer keeps its pre-multi-preset
+		 * behaviour rather than failing to mount.
+		 *
+		 * @param presets - the store from `inject: () => ({ presets })`.
+		 * @returns `{ ready, shown, names }`.
+		 */
+		function usePresetSnapshot(presets) {
+			const source = presets !== undefined && presets !== null && typeof presets.getSnapshot === 'function'
+				? presets
+				: DEGRADED_PRESET_SOURCE;
+			const [snapshot, setSnapshot] = useState(() => source.getSnapshot());
+			useEffect(() => {
+				// Re-read on mount: the store may have attached between the initial
+				// render and this effect (the settings form resolves asynchronously).
+				setSnapshot(source.getSnapshot());
+				return source.subscribe(() => setSnapshot(source.getSnapshot()));
+			}, [source]);
+			return snapshot;
+		}
+
+		/**
+		 * End the session's run when the composer consumed the draft.
+		 *
+		 * A sent draft (or one emptied under us) leaves the run with no target: the
+		 * result had nowhere to go and a spinner with no draft reads as broken. This
+		 * is the ONE abort that is not an unmount — switching sessions must keep the
+		 * run alive.
+		 *
+		 * It lives at the group level rather than in each button because the group
+		 * unmounts its buttons when the composer goes blank (§8.2 rule 5): an effect
+		 * inside an unmounted button could never run, and the controller would be
+		 * orphaned in `RUNNING`. The group stays mounted, so this always runs.
+		 *
+		 * @param params - `{ sessionKey, phase, draft }`.
+		 */
+		function useDiscardRunOnSend(params) {
+			const { sessionKey, phase, draft } = params;
+			useEffect(() => {
+				const running = RUNNING.get(sessionKey);
+				if (running === undefined) return;
+				const sent = phase === 'submitting' || phase === 'adjudicating';
+				const emptied = cleanDraft(draft).length === 0;
+				if (!sent && !emptied) return;
+				closeRun(sessionKey, running.controller);
+				running.controller.abort();
+				const key = taskKey(sessionKey, running.presetId);
+				setTask(key, taskReducer(TASKS.get(key) ?? emptyTask(), { type: 'discardRun' }));
+			}, [sessionKey, phase, draft]);
+		}
+
+		/**
+		 * The composer control: a group of up to four buttons, one per shown preset.
+		 *
+		 * This component owns NO single-task state. It reads two stores (the preset
+		 * store and the task tables), derives the two values that only make sense
+		 * across buttons, and renders one `RefineButton` per shown preset — each a
+		 * real component instance, because the per-task logic needs ~21 hook calls
+		 * and hooks may not run in a loop (§10.2).
+		 *
+		 * `busyElsewhere` (§8.1) and `anyUndo` (§8.2.5) are computed HERE and passed
+		 * down as props: a button cannot see its siblings, and without them the
+		 * other three would keep a stale `disabled: false` and a click there would
+		 * overwrite the live controller in `RUNNING`.
+		 *
+		 * Receives the slot's standard props: `sessionId`, `useInput`,
+		 * `inputActions`, the bound translator `t`, and this plugin's own inject
+		 * face `presets`.
 		 */
 		function RefineControl(props) {
-			const { sessionId, useInput, inputActions, t } = props;
+			const { sessionId, useInput, inputActions, t, presets } = props;
+			const draft = useInput((state) => state.draft);
+			const phase = useInput((state) => state.phase);
+
+			// Re-render whenever ANY task or run changes — this is the channel that
+			// makes the other three buttons' `disabled` follow the running one.
+			useTaskBus();
+			const presetSnap = usePresetSnapshot(presets);
+
+			const sessionKey = typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : 'unknown';
+
+			// §8.2 rules 2 and 4, which must stay distinct:
+			//   !ready            → degrade to ONE button, key fixed to `general`
+			//   ready && shown=[] → the user unchecked all four; render NOTHING
+			const degraded = presetSnap.ready !== true;
+			const shown = degraded ? ['general'] : PRESET_KEYS.filter((key) => presetSnap.shown.includes(key));
+
+			useDiscardRunOnSend({ sessionKey, phase, draft });
+
+			const running = RUNNING.get(sessionKey);
+			const runningPresetId = running === undefined ? null : running.presetId;
+			// §8.2.5: the group stays visible while any of its buttons can still
+			// revert, even over an empty composer.
+			const anyUndo = shown.some((presetId) => (TASKS.get(taskKey(sessionKey, presetId)) ?? emptyTask()).status === 'undo');
+
+			if (!degraded && shown.length === 0) return null;
+			if (isBlankDraft(draft) && !anyUndo) return null;
+
+			return h(
+				'span',
+				{ className: 'dsh-pr-wrap dsh-pr-group' },
+				shown.map((presetId, index) => h(RefineButton, {
+					key: presetId,
+					sessionId,
+					sessionKey,
+					presetId,
+					degraded,
+					// 用户反馈（2026-11-06）：tooltip 直接用生效名（未改名即 OptionA–D）。
+					// `named` 位已删除（tooltip 改为只显示名字，不再需要区分「未改名」）。
+					// 降级路径没有 store 的 names，用内置名兜底，避免「 · 提示词优化」空名。
+					name: degraded ? DEFAULT_NAMES[presetId] : presetSnap.names[presetId],
+					index: index + 1,
+					total: shown.length,
+					// §8.1: one run per session — every button but the owner greys out.
+					busyElsewhere: runningPresetId !== null && runningPresetId !== presetId,
+					useInput,
+					inputActions,
+					t,
+				})),
+			);
+		}
+
+		/**
+		 * One composer button: its own task record, its own run, its own effects.
+		 *
+		 * Everything that used to live in the single control lives here, parameterized
+		 * by `presetId`. Each instance reads ONLY its own `TASKS` entry, so two
+		 * presets never share a spinner, a snapshot or a failure.
+		 */
+		function RefineButton(props) {
+			const {
+				sessionId, sessionKey, presetId, degraded, name, index, total,
+				busyElsewhere, useInput, inputActions, t,
+			} = props;
 
 			// One selector per field: each subscribes to the smallest slice, so the button
 			// does not re-render on unrelated composer changes.
@@ -1323,20 +1983,14 @@ window.__ModuleLoader__.load({
 			// publish an empty list; older hosts may omit the field entirely).
 			const occurrences = useInput((state) => state.occurrences);
 
-			// One record per session, held at MODULE level: this seat unmounts on a
-			// session switch, and component-held state would take the run with it.
-			const store = TASKS;
+			const key = taskKey(sessionKey, presetId);
+			const task = TASKS.get(key) ?? emptyTask();
 
-			const [, forceRender] = useReducer((n) => n + 1, 0);
-			const key = typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : 'unknown';
-			const task = store.get(key) ?? emptyTask();
-
-			/** Apply one action to this session's record and re-render. */
+			/** Apply one action to THIS button's record; the bus re-renders the group. */
 			const dispatch = useCallback((action) => {
-				const current = store.get(key) ?? emptyTask();
-				store.set(key, taskReducer(current, action));
-				forceRender();
-			}, [key, store]);
+				const current = TASKS.get(key) ?? emptyTask();
+				setTask(key, taskReducer(current, action));
+			}, [key]);
 
 			// The draft as it is NOW, readable from async callbacks created in an earlier
 			// render — the rewriter's own comment calls out exactly this hazard.
@@ -1402,7 +2056,7 @@ window.__ModuleLoader__.load({
 			}, [dispatch, phase, replaceDraft]);
 
 			/**
-			 * Run one refinement.
+			 * Run one refinement for THIS preset.
 			 *
 			 * A parked result is applied first: the user asked to retry the WRITE, and
 			 * re-running the model would produce a different answer for the same draft.
@@ -1422,15 +2076,15 @@ window.__ModuleLoader__.load({
 				const rev = revRef.current;
 
 				const controller = new AbortController();
-				RUNNING.set(key, controller);
+				openRun(sessionKey, presetId, controller);
 				// Bump the generation and remember it: anything settling after a newer run
 				// started carries a stale number and is dropped.
-				const generation = (store.get(key) ?? emptyTask()).generation + 1;
+				const generation = (TASKS.get(key) ?? emptyTask()).generation + 1;
 				dispatch({ type: 'start' });
 
 				// Generation is the only guard now: any cancel path bumps it, so a late
 				// reply is stale whether or not this seat is still mounted.
-				const stillCurrent = () => (store.get(key) ?? emptyTask()).generation === generation;
+				const stillCurrent = () => (TASKS.get(key) ?? emptyTask()).generation === generation;
 
 				try {
 					const response = await sendRequest(REFINE_PATH, {
@@ -1439,6 +2093,10 @@ window.__ModuleLoader__.load({
 						body: JSON.stringify({
 							draft: source,
 							...(typeof sessionId === 'string' && sessionId.length > 0 ? { sessionId } : {}),
+							// D12: the body names WHICH preset, never its text — the host
+							// resolves the prompt from its own config. Degraded mode omits
+							// the field entirely, which is the pre-multi-preset request.
+							...(degraded ? {} : { presetId }),
 						}),
 						signal: controller.signal,
 					});
@@ -1468,16 +2126,18 @@ window.__ModuleLoader__.load({
 					if (!stillCurrent()) return;
 					dispatch({ type: 'failed', failure: { key: 'state.network' } });
 				} finally {
-					if (RUNNING.get(key) === controller) RUNNING.delete(key);
+					// Only the owner's own handle closes the run: another preset may have
+					// replaced the entry, and deleting it here would drop a live controller.
+					closeRun(sessionKey, controller);
 				}
-			}, [deliver, dispatch, key, sessionId, store, task.parked]);
+			}, [deliver, degraded, dispatch, key, presetId, sessionId, sessionKey, task.parked]);
 
 			/** Click: cancel while busy, revert in the undo seat, otherwise start/retry. */
 			const onClick = useCallback(() => {
 				if (task.status === 'busy') {
-					const controller = RUNNING.get(key);
-					RUNNING.delete(key);
-					controller?.abort();
+					const running = RUNNING.get(sessionKey);
+					closeRun(sessionKey);
+					running?.controller?.abort();
 					dispatch({ type: 'cancelled' });
 					return;
 				}
@@ -1489,22 +2149,7 @@ window.__ModuleLoader__.load({
 				// no longer be restored.
 				if (task.snapshot !== null) dispatch({ type: 'dropSnapshot' });
 				run();
-			}, [dispatch, key, revert, run, task.snapshot, task.status]);
-
-			// A sent draft (or one emptied under us) ends the run silently: the result had
-			// nowhere to go, and a spinner with no draft reads as broken. This is the one
-			// abort that is NOT an unmount — switching sessions must keep the run alive.
-			useEffect(() => {
-				if (task.status !== 'busy') return;
-				const sent = phase === 'submitting' || phase === 'adjudicating';
-				const emptied = cleanDraft(draft).length === 0;
-				if (!sent && !emptied) return;
-				const controller = RUNNING.get(key);
-				if (controller === undefined) return;
-				RUNNING.delete(key);
-				controller.abort();
-				dispatch({ type: 'discardRun' });
-			}, [phase, draft, task.status, key, dispatch]);
+			}, [dispatch, revert, run, sessionKey, task.snapshot, task.status]);
 
 			// Announce a transient outcome once, then clear so the live region can speak
 			// again for the next one.
@@ -1576,7 +2221,9 @@ window.__ModuleLoader__.load({
 					label = failureText.length > 0 ? failureText : t('label.retry');
 					break;
 				default:
-					label = t('label.idle');
+					// 用户反馈（2026-11-06）：悬停要显示的是**这颗按钮的名称**，不是那句长文案。
+					// 已改名 → 生效名；未改名 → 内置名 OptionA–D。busy/undo/error 仍显示状态。
+					label = t('label.idleNamed', { name });
 			}
 
 			// Nothing to act on: no draft, no work in flight, no result to restore, no
@@ -1587,7 +2234,10 @@ window.__ModuleLoader__.load({
 			// describes work that no longer has a target.
 			if (isBlankDraft(draft) && state !== 'undo') return null;
 
-			const disabled = inputActions === undefined || typeof inputActions.insertText !== 'function';
+			// §8.1: while a SIBLING preset runs, this button is greyed out. The
+			// composer's own writability still applies on top.
+			const disabled = busyElsewhere
+				|| inputActions === undefined || typeof inputActions.insertText !== 'function';
 			const announcement = task.announce === undefined || task.announce === null
 				? ''
 				: t(task.announce.key, task.announce.params);
@@ -1597,7 +2247,13 @@ window.__ModuleLoader__.load({
 					? h(UndoGlyph)
 					: state === 'error'
 						? h(RetryGlyph)
-						: h(RefineGlyph);
+						: h(OrderGlyph);
+
+			// §8.4: the ordinal only reaches assistive tech, so four same-named buttons
+			// stay distinguishable in a screen reader's list without adding visual noise.
+			const ariaLabel = total > 1
+				? `${label}${t('label.ordinal', { index: String(index), total: String(total) })}`
+				: label;
 
 			return h(
 				'span',
@@ -1608,11 +2264,12 @@ window.__ModuleLoader__.load({
 						type: 'button',
 						className: 'dsh-pr-btn',
 						'data-state': state,
+						'data-preset': degraded ? 'general' : presetId,
 						disabled,
 						// `aria-pressed` would claim a toggle; this control's action changes with
 						// its state, so the accessible name states what a click does.
 						title: label,
-						'aria-label': label,
+						'aria-label': ariaLabel,
 						onClick,
 					},
 					glyph,
@@ -1628,7 +2285,6 @@ window.__ModuleLoader__.load({
 		/** Every string the user can see. `zh` and `en` carry identical keys. */
 		const DICTIONARY = {
 			zh: {
-				'label.idle': '把草稿优化成更清晰的提示词',
 				'label.busyWithTime': '正在优化… 已用 {seconds} 秒',
 				'label.undo': '回退到优化前的草稿（也可以按 Ctrl+Z）',
 				'label.retry': '上次优化失败，点击重试',
@@ -1653,15 +2309,18 @@ window.__ModuleLoader__.load({
 				'state.refusedMapping': '输入框未能接受替换，优化结果未写入。结果已保留，可点击重试。',
 				'nav': '提示词优化',
 				'title': '提示词优化设置',
-				'enabled.label': '启用提示词优化',
-				'preset.groupLabel': '预设',
-				'preset.general': '通用',
-				'preset.code': '编程',
-				'preset.writing': '写作',
-				'preset.translation': '翻译',
+				'enabled.label': '启用',
+				'preset.pickLabel': '预设',
+				'name.label': '名称',
+				'showButton.label': '显示按钮',
+				'action.edit': '编辑',
+				'action.done': '完成',
+				'label.idleNamed': '{name}',
+				'label.ordinal': '（第 {index} 个，共 {total} 个）',
+				'page.noButtons': '未勾选任何预设，输入框不显示优化按钮。',
 				'prompt.title': '{preset}预设的完整提示词',
-				'prompt.restoreDefault': '恢复默认',
-				'context.label': '读取会话上下文',
+				'prompt.restoreDefault': '默认',
+				'context.label': '读取上下文',
 				'model.label': '模型来源',
 				'model.groupLabel': '模型来源',
 				'model.follow': '跟随会话',
@@ -1686,7 +2345,6 @@ window.__ModuleLoader__.load({
 				'page.noModelFixed': '已选择「固定模型」但还没有选具体模型，请先在模型目录中选择，再保存。',
 			},
 			en: {
-				'label.idle': 'Refine the draft into a clearer prompt',
 				'label.busyWithTime': 'Refining… {seconds}s',
 				'label.undo': 'Restore the draft from before the refinement (or press Ctrl+Z)',
 				'label.retry': 'The last refinement failed; click to retry',
@@ -1711,15 +2369,18 @@ window.__ModuleLoader__.load({
 				'state.refusedMapping': 'The composer did not accept the replacement. The result is kept — click to retry.',
 				'nav': 'Draft Studio',
 				'title': 'Prompt refinement settings',
-				'enabled.label': 'Enable prompt refinement',
-				'preset.groupLabel': 'Preset',
-				'preset.general': 'General',
-				'preset.code': 'Code',
-				'preset.writing': 'Writing',
-				'preset.translation': 'Translation',
+				'enabled.label': 'Enable',
+				'preset.pickLabel': 'Preset',
+				'name.label': 'Name',
+				'showButton.label': 'Show button',
+				'action.edit': 'Edit',
+				'action.done': 'Done',
+				'label.idleNamed': '{name}',
+				'label.ordinal': '(button {index} of {total})',
+				'page.noButtons': 'No presets are checked, so the composer shows no refine button.',
 				'prompt.title': 'Full prompt for the {preset} preset',
-				'prompt.restoreDefault': 'Restore default',
-				'context.label': 'Read conversation context',
+				'prompt.restoreDefault': 'Default',
+				'context.label': 'Read context',
 				'model.label': 'Model source',
 				'model.groupLabel': 'Model source',
 				'model.follow': 'Follow session',
@@ -1763,11 +2424,24 @@ window.__ModuleLoader__.load({
 					() => ctx.locale.register(NS, DICTIONARY),
 					'dsh-draft-studio: dictionaries',
 				);
+				// The preset store lives OUTSIDE the scoped inject below: the composer
+				// seat is registered at the top level and must still render one button
+				// in a profile that has no settings service at all (§8.2 rule 4). It
+				// starts `ready: false`, so that profile simply keeps the degraded path.
+				const presets = createPresetStore();
 				// The seat itself: one list entry beside the submit action, scoped to the
-				// session by the slot's own contract.
+				// session by the slot's own contract. Registration stays at the TOP level
+				// (§10.2); the store arrives through the inject face instead, so a missing
+				// `configForms` degrades the button count but never unregisters the seat.
 				ctx.slots.inject('conversation.input.right', () =>
 					ctx.slots.register(
-						{ name: 'conversation.input.right', id: 'dsh-draft-studio', order: 60, locale: NS },
+						{
+							name: 'conversation.input.right',
+							id: 'dsh-draft-studio',
+							order: 60,
+							locale: NS,
+							inject: () => ({ presets }),
+						},
 						RefineControl,
 					),
 				);
@@ -1786,9 +2460,18 @@ window.__ModuleLoader__.load({
 				ctx.inject(['slots', 'locale', 'configForms', 'remote', 'remote.session'], (scope) => {
 						const pageT = scope.locale.bind(NS);
 						const controller = new SettingsPageController(scope, pageT);
+						// The composer reads the SAME settings document the page writes:
+						// attaching here means the two seats cannot disagree about which
+						// presets are shown, and the store reads the resolved view, so an
+						// upgrade that never touched `presetButtons` still shows all four.
+						presets.attach(scope.configForms);
 						scope.effect(
 							() => () => controller.dispose(),
 							'dsh-draft-studio: settings page',
+						);
+						scope.effect(
+							() => () => presets.dispose(),
+							'dsh-draft-studio: preset store',
 						);
 						scope.slots.inject('settings.section', () =>
 							scope.slots.register(
