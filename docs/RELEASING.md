@@ -260,7 +260,17 @@ DSH 每发一个新 rc 元组就要补一支，**漏一次插件就消失**。
 
 ## 8. 市场条目（发布后的另一条链路）
 
-npm 与 Release 完成**不等于**上了市场。条目是市场仓库里的一个文件：
+**发布 ≠ 上架。** 三件事互相独立，缺一件都搜不到：
+
+| # | 做了什么 | 谁拥有 | 结果 |
+|---|---|---|---|
+| 1 | `npm publish` | 我们 | 包可被安装，但市场不列 |
+| 2 | GitHub Release + `dsh-draft-studio.tgz` 资产 | 我们 | 市场条目的 `tarball` 指向这里 |
+| 3 | 向市场仓库提 PR，加一个条目文件 | 我们提，**维护者合并** | 合并后才进索引、才搜得到 |
+
+### 8.1 条目文件
+
+市场仓库 `awesome-dsh-plugin/awesome-dsh-plugin` 里的一个 YAML：
 
 ```
 data/plugins/wufeng0105__dsh-draft-studio.yml
@@ -271,13 +281,66 @@ url: https://github.com/wufeng0105/dsh-draft-studio
 name: wufeng0105/dsh-draft-studio
 category: usage
 description:
-  en: 'Rewrites the composer draft into a clearer, structured prompt in place, without sending it. Four editable presets, optional conversation context, and a model that either follows the session or is pinned.'
-  zh: 把输入框里的草稿原位改写成更清晰的结构化提示词，不替你发送。四套可编辑预设、可选的会话上下文，模型可跟随会话或固定一个。
-icon: https://raw.githubusercontent.com/wufeng0105/dsh-draft-studio/main/assets/icon-180.png
+  en: '…'
+  zh: '…'
 tarball: https://github.com/wufeng0105/dsh-draft-studio/releases/latest/download/dsh-draft-studio.tgz
+# icon 可选；本仓没提供 assets/ 图，条目里就没写这个字段
 ```
 
-规则见 `awesome-dsh-plugin/awesome-dsh-plugin` 的 `contributing.md`。两条最容易踩的：
+两条最容易踩的：
 
-- 描述**必须与代码一致**，评审会对着代码核每一句。写「46 个工具」就得真有 46 个。
-- `tarball` 用 `latest/download/` 时**文件名字里不能带版本号**——带了就今天有效、下次发版 404。本仓 `npm pack` 产物默认带版本号，上传 Release 时先改名成 `dsh-draft-studio.tgz`；或用钉住 tag 的形式 `releases/download/v<VER>/dsh-draft-studio-<VER>.tgz`。
+- 描述**必须与代码一致**，评审对着代码核每一句。写「46 个工具」就得真有 46 个。
+- `tarball` 用 `latest/download/` 时文件名**不能带版本号**（带了下个版本就 404）。本仓 `npm pack` 产物默认带版本号，上传 Release 前改名成 `dsh-draft-studio.tgz`。
+
+### 8.2 审核闸门：为什么"提了也一直不出现"
+
+PR 上有两个检查，**它们是串行触发的**：
+
+```
+推/改 PR  →  pr-check（约 16 分钟，fork 侧、无 token）
+                 ↓ workflow_run
+            Submission gate（base 仓库侧，有 token）
+```
+
+`Submission gate` 检查三项，任一不过就是红：
+
+1. 条目的 bundle 清单合法；
+2. **条目指向的仓库存在 ≥ 1 天**；
+3. 仓库提交数达标。
+
+**最容易卡住的是第 2 条**：仓库刚建好就提 PR → `repository is 0.0 days old (needs 1)`。gate 的提示说"会自动重跑"，实际机制是另一个工作流 `regate`：
+
+- 排期 `19 */6 * * *`（每 6 小时一次）；
+- **每轮最多重跑 20 个**，按 PR 号从旧到新；
+- 队列常态化有数百个开着 PR → **不保证轮到你**（实测：仓库满 24 小时后那一轮 `regate` 跑过了，但没有轮到我们的 PR）。
+
+### 8.3 加速：推一个空提交
+
+`pr-check` 只由 PR 事件（opened / synchronize）触发，所以最可靠的触发方式是在**分支上加一个空提交**：
+
+```powershell
+# 分支在 fork 上：wufeng0105/awesome-dsh-plugin，不是本仓
+git clone --depth 1 --branch add-dsh-draft-studio https://github.com/wufeng0105/awesome-dsh-plugin.git $env:TEMP\recheck
+cd $env:TEMP\recheck
+git commit --allow-empty -m "recheck: repository is now older than one day (no content change)"
+git push origin HEAD:add-dsh-draft-studio
+```
+
+空提交不改内容，只是让 `pr-check` 重跑一遍，进而让 gate 重新判定。**推完约 16 分钟才出 gate 结论**（要等上游跑完）。
+
+### 8.4 合并由维护者做
+
+即使两个检查全绿，PR 也还是 `OPEN`——那份仓库我们**没有写权限**，只能等维护者合并。合并之后才会重建索引、出现在搜索里。**"检查绿了"不等于"上架了"。**
+
+### 8.5 首次上架实录（可对照）
+
+| 时间（本地） | 事件 |
+|---|---|
+| 2026-11-05 14:16 | 仓库创建 |
+| 2026-11-05 14:35 | 提交条目 PR #12217（仓库才 18 分钟） |
+| 2026-11-05 15:02 | `Submission gate` 红：`repository is 0.0 days old (needs 1)`；`check` 绿（16 分钟） |
+| 2026-11-06 14:16 | 仓库满 24 小时 |
+| 2026-11-06 14:31 | `regate` 跑过一轮，**未轮到此 PR**（队列 331 个，每轮 20 个） |
+| 2026-11-06 15:48 | 推空提交触发重跑（`87be854 → bb5b9bc`） |
+
+**结论**：从提交到上架，真正的瓶颈不在我们的发布流程，而在"仓库年龄 + 排队"。**下次新插件上架，先把仓库建好、隔一天再提 PR**，可以省掉这一整轮等待。
