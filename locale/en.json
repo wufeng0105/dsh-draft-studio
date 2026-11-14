@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "Draft Studio",
-    "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow — rewritten in place, one click, never sent. Four editable presets, one button each; choose which refine buttons to show, optional conversation context, follow or pin the model."
+    "title": "Prompt Refinement",
+    "description": "Turn a half-thought-out line in the input box into a complete instruction the AI can actually follow — one click, rewritten in place, never sent, one-click undo. Four editable presets (general / code / writing / translation), one button each, and you choose which buttons show up. It can read the last few turns of the conversation to work out what \"that thing I just mentioned\" refers to, and it can either follow the current conversation's model or use one you pin."
   }
 }

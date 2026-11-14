@@ -65,7 +65,7 @@ node scripts/check-version.mjs                    # 校验点：V5 OK（最新 t
 
 ```powershell
 $notes = @'
-## Draft Studio v<VER>
+## 提示词优化 v<VER>
 
 <两三句：这版改了什么、为什么>
 

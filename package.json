@@ -1,8 +1,8 @@
 {
   "name": "dsh-draft-studio",
-  "version": "1.2.2",
+  "version": "1.2.3",
 
-  "description": "Turn a half-formed draft in the composer into a prompt the AI can actually follow - rewritten in place, one click, never sent.",
+  "description": "你在输入框里随手打的一句还没想清楚的话，点一下，就变成 AI 真能照着干的完整指令。改完还是草稿，不会替你发出去；不满意一键还原。",
   "repository": { "type": "git", "url": "git+https://github.com/wufeng0105/dsh-draft-studio.git" },
   "homepage": "https://github.com/wufeng0105/dsh-draft-studio#readme",
   "bugs": { "url": "https://github.com/wufeng0105/dsh-draft-studio/issues" },

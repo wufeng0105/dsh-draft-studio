@@ -21,7 +21,7 @@
 | 3 | `package.json` → `dsh.client.inject: ["@deepseek-ai/dsh-client-ui-conversation"]` | `package.json` | 声明了一个不存在的宿主包 → 加载不到 | `npm run self-check` 第 2 层 |
 | 4 | `package.json` → `dsh.bundle.patch` 指向 `cordis.patch.yml`，其中有一行 `insert` | `package.json`、`cordis.patch.yml` | 宿主根本不装载本包 | `npm run self-check` 第 2 层 |
 | 5 | 槽位 `conversation.input.right`（**list** 型） | `client.js` 的 `apply` | 输入框旁没有按钮，其余功能正常 | 看输入框右侧有没有那几颗图标 |
-| 6 | 槽位 `settings.section`（**list** 型） | `client.js` 的 `apply` | 设置页没有「草稿工坊」这一项 | 打开 设置 → 找本插件 |
+| 6 | 槽位 `settings.section`（**list** 型） | `client.js` 的 `apply` | 设置页没有「提示词优化」这一项 | 打开 设置 → 找本插件 |
 
 ---
 
@@ -89,7 +89,7 @@ npm run check-version                                     # 3. 版本与 CHANGEL
 ```
 
 4. **插件条目是否 active**：设置 → 插件，找 `dsh-draft-studio`，状态应为启用且未报错（对应第 5、6、7 项）。
-5. **设置页打得开吗**：能找到「草稿工坊」页、六个格子都在、文案是中文不是 key（对应第 8–11、13 项）。
+5. **设置页打得开吗**：能找到「提示词优化」页、六个格子都在、文案是中文不是 key（对应第 8–11、13 项）。
 6. **打一次真实改写**：随便打几个字 → 点一颗按钮 → 草稿应被改写；失败时看提示文案（对应第 15–17、19–23 项）。
 7. **降级路径**：如果第 5 步显示「不可用」，说明 `configForms` 那一路断了——此时输入框应该只剩一颗按钮且仍可用（第 9 项）。
 8. **状态行只在宿主回报过时出现**：任选一颗按钮改写一次，回到设置页应看到「上次改写：…」；若宿主是旧的（响应里没有 `context` 字段），这一行**整行不出现**——不出现是正确行为，不是缺失。

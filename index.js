@@ -893,10 +893,10 @@ async function refine(scope, config, request, signal, infoCache) {
 	}
 	const route = resolveRoute(scope, request?.sessionId, config);
 	if (route === undefined) {
-		throw new RefineFailure('NO_MODEL', '当前没有可用的模型选择，请先在会话里选择一个模型。');
+		throw new RefineFailure('NO_MODEL', '现在没有可用的模型，先在当前对话里选一个。');
 	}
 	if (!config.enabled) {
-		throw new RefineFailure('DISABLED', '提示词优化已关闭。请在设置中开启后重试。');
+		throw new RefineFailure('DISABLED', '提示词优化没开。去设置里打开它再试。');
 	}
 	const gathered = collectContext(scope, request?.sessionId, config, draft);
 	const context = gathered.json;
